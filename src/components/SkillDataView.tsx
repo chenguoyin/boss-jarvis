@@ -2,6 +2,8 @@ import { SquareDashed } from "lucide-react";
 import type { AppSection } from "@/lib/sections";
 import { isMissing } from "@/lib/contract";
 import type { SkillFailure } from "@/hooks/useSkillData";
+import SkillManagerView from "./SkillManagerView";
+import { parseSkillManager } from "@/lib/skillManager";
 
 interface Props {
   section: AppSection;
@@ -20,6 +22,9 @@ export default function SkillDataView({ section, envelopes, failures }: Props) {
   const loaded = section.skills
     .map((skill) => ({ skill, envelope: envelopes[skill] }))
     .filter((entry) => entry.envelope !== undefined);
+  const skillManager = envelopes["skill-manager"]
+    ? parseSkillManager(envelopes["skill-manager"] as import("@/lib/contract").SkillEnvelope)
+    : null;
 
   return (
     <div className="jv-placeholder">
@@ -32,27 +37,31 @@ export default function SkillDataView({ section, envelopes, failures }: Props) {
           ))}
         </div>
       )}
-      <SquareDashed size={40} strokeWidth={1.5} />
-      <div className="jv-title" style={{ color: "var(--jv-text)" }}>
-        {section.title}
-      </div>
-      {loaded.length === 0 ? (
-        <div className="jv-body" style={{ color: "var(--jv-muted)" }}>
-          尚未获取数据，请点击右上角刷新。
-        </div>
+      {section.id === "skills" ? (
+        <SkillManagerView result={skillManager} />
       ) : (
-        <div className="jv-skill-status-list">
-          {loaded.map(({ skill, envelope }) => (
-            <div key={skill} className="jv-skill-status-row">
-              <span className="jv-body jv-skill-status-name">{skill}</span>
-              <span className="jv-body jv-skill-status-value">
-                {envelope === null
-                  ? "未获取"
-                  : `条目 ${displayValue(envelope.count)} · ${displayValue(envelope.fetchedAt)}`}
-              </span>
+        <>
+          <SquareDashed size={40} strokeWidth={1.5} />
+          <div className="jv-title" style={{ color: "var(--jv-text)" }}>{section.title}</div>
+          {loaded.length === 0 ? (
+            <div className="jv-body" style={{ color: "var(--jv-muted)" }}>
+              尚未获取数据，请点击右上角刷新。
             </div>
-          ))}
-        </div>
+          ) : (
+            <div className="jv-skill-status-list">
+              {loaded.map(({ skill, envelope }) => (
+                <div key={skill} className="jv-skill-status-row">
+                  <span className="jv-body jv-skill-status-name">{skill}</span>
+                  <span className="jv-body jv-skill-status-value">
+                    {envelope === null
+                      ? "未获取"
+                      : `条目 ${displayValue(envelope.count)} · ${displayValue(envelope.fetchedAt)}`}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

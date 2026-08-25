@@ -349,3 +349,103 @@
 .jv-skill-status-value {
   color: var(--jv-text);
 }
+
+.jv-card {
+  background: var(--jv-card);
+  border: 1px solid var(--jv-line);
+  border-radius: var(--jv-radius-card);
+  padding: 24px;
+}
+
+.jv-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 40px 0;
+  color: var(--jv-muted);
+}
+
+.jv-muted {
+  color: var(--jv-muted);
+}
+
+.jv-skill-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.jv-skill-header > div:first-child {
+  color: var(--jv-text);
+}
+
+.jv-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 10px;
+  border-radius: var(--jv-radius-pill);
+  font-weight: 600;
+}
+
+.jv-pill-attention {
+  background: color-mix(in srgb, var(--jv-attention) 12%, transparent);
+  color: var(--jv-attention);
+}
+
+.jv-skill-table {
+  display: flex;
+  flex-direction: column;
+  margin-top: 16px;
+}
+
+.jv-skill-row {
+  display: grid;
+  grid-template-columns: 36px 1fr 90px 90px 104px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--jv-line) 60%, transparent);
+}
+
+.jv-skill-row:last-child {
+  border-bottom: none;
+}
+
+.jv-skill-row-head {
+  font-weight: 600;
+}
+
+.jv-skill-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.jv-skill-name {
+  color: var(--jv-text);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jv-skill-main .jv-caption {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jv-level-normal {
+  color: var(--jv-normal);
+}
+
+.jv-level-attention {
+  color: var(--jv-attention);
+}
+
+.jv-level-missing {
+  color: var(--jv-faint);
+}

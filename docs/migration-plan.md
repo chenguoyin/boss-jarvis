@@ -43,6 +43,11 @@ macOS 与 Windows 共用同一套前端、Rust 核心与设计系统；平台差
 ### Phase 3：12 视图逐一迁移
 - 先数据展示、后写操作；每个视图 macOS 比对通过才完成
 
+落地记录：
+- [x] Skill 管理视图（展示层）：`src/components/SkillManagerView.tsx` +
+  `src/lib/skillManager.ts`。表格列、生命周期徽标、运行状态、空态/未获取态
+  与 legacy `SkillManagerView.swift` 对齐；启停/安装/卸载写操作待 Phase 4 确认中心接入。
+
 ### Phase 4：确认中心 / 审计 / 配置
 - 行为一致：OA 详情弹层点同意/不同意即确认直接执行并审计；Skill 启停/AI 写操作先进确认中心；邮件只标记已读/打开草稿，绝不自动发送
 
