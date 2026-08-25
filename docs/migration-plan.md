@@ -50,6 +50,11 @@ macOS 与 Windows 共用同一套前端、Rust 核心与设计系统；平台差
 - [x] 日历提醒视图（只读 + 详情弹层）：`src/components/NativeCalendarView.tsx` +
   `src/lib/nativeCalendar.ts`。今日日程/提醒两张表、级别映射、行点击详情弹层、
   空态与「未获取」态与 legacy `NativeCalendarView.swift` 对齐。
+- [x] 每日晨报视图（只读）：`src/components/BriefingView.tsx` +
+  `src/lib/dailyBriefing.ts`。按契约只读 daily-briefing 巡检产物
+  `~/.codex/workbench-reports/latest/boss-cockpit.json` 的 `bossView`；
+  Rust 命令 `read_daily_briefing_report` 负责读取，巡检按钮复用统一刷新链路；
+  KPI 四格、三组事项、来源与定时任务状态、空态与「未获取」态与 legacy 对齐。
 
 ### Phase 4：确认中心 / 审计 / 配置
 - 行为一致：OA 详情弹层点同意/不同意即确认直接执行并审计；Skill 启停/AI 写操作先进确认中心；邮件只标记已读/打开草稿，绝不自动发送

@@ -20,3 +20,8 @@ export async function readSkillData(skill: string): Promise<SkillEnvelope | null
   const text = await invoke<string | null>("read_skill_data", { skill });
   return text === null ? null : parseSkillJson(text);
 }
+
+export async function readDailyBriefingReport(): Promise<SkillEnvelope | null> {
+  const text = await invoke<string | null>("read_daily_briefing_report");
+  return text === null ? null : parseSkillJson(text);
+}

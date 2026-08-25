@@ -442,12 +442,106 @@
   color: var(--jv-normal);
 }
 
+.jv-level-urgent {
+  color: var(--jv-urgent);
+}
+
 .jv-level-attention {
   color: var(--jv-attention);
 }
 
 .jv-level-missing {
   color: var(--jv-faint);
+}
+
+.jv-level-bg-urgent {
+  background: color-mix(in srgb, var(--jv-urgent) 8%, transparent);
+}
+
+.jv-level-bg-attention {
+  background: color-mix(in srgb, var(--jv-attention) 8%, transparent);
+}
+
+.jv-level-bg-normal {
+  background: color-mix(in srgb, var(--jv-normal) 8%, transparent);
+}
+
+.jv-level-bg-missing {
+  background: color-mix(in srgb, var(--jv-faint) 8%, transparent);
+}
+
+/* ---------- 每日晨报 ---------- */
+.jv-briefing-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.jv-briefing-kpi {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  padding: 12px;
+  border-radius: var(--jv-radius-kpi);
+}
+
+.jv-briefing-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.jv-briefing-section {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 14px;
+  background: var(--jv-card-soft);
+  border-radius: var(--jv-radius-section);
+}
+
+.jv-briefing-section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--jv-text);
+}
+
+.jv-briefing-empty {
+  color: var(--jv-faint);
+  padding-left: var(--jv-briefing-indent);
+}
+
+.jv-briefing-item {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  column-gap: 8px;
+  align-items: baseline;
+}
+
+.jv-briefing-index {
+  grid-column: 1;
+  text-align: right;
+}
+
+.jv-briefing-text {
+  grid-column: 2;
+  color: var(--jv-text);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.jv-briefing-source {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 14px;
 }
 
 .jv-pill-normal {

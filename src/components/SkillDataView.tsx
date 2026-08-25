@@ -6,11 +6,16 @@ import SkillManagerView from "./SkillManagerView";
 import { parseSkillManager } from "@/lib/skillManager";
 import NativeCalendarView from "./NativeCalendarView";
 import { parseNativeCalendar } from "@/lib/nativeCalendar";
+import BriefingView from "./BriefingView";
+import { parseDailyBriefing } from "@/lib/dailyBriefing";
 
 interface Props {
   section: AppSection;
   envelopes: Record<string, import("@/lib/contract").SkillEnvelope | null>;
   failures: SkillFailure[];
+  briefingEnvelope: import("@/lib/contract").SkillEnvelope | null;
+  isRunning: boolean;
+  onRun: () => void;
 }
 
 function displayValue(value: unknown): string {
@@ -20,7 +25,14 @@ function displayValue(value: unknown): string {
   return "未获取";
 }
 
-export default function SkillDataView({ section, envelopes, failures }: Props) {
+export default function SkillDataView({
+  section,
+  envelopes,
+  failures,
+  briefingEnvelope,
+  isRunning,
+  onRun,
+}: Props) {
   const loaded = section.skills
     .map((skill) => ({ skill, envelope: envelopes[skill] }))
     .filter((entry) => entry.envelope !== undefined);
@@ -30,6 +42,7 @@ export default function SkillDataView({ section, envelopes, failures }: Props) {
   const nativeCalendar = envelopes["native-calendar"]
     ? parseNativeCalendar(envelopes["native-calendar"] as import("@/lib/contract").SkillEnvelope)
     : null;
+  const briefing = briefingEnvelope ? parseDailyBriefing(briefingEnvelope) : null;
 
   return (
     <div className="jv-placeholder">
@@ -46,6 +59,8 @@ export default function SkillDataView({ section, envelopes, failures }: Props) {
         <SkillManagerView result={skillManager} />
       ) : section.id === "calendar" ? (
         <NativeCalendarView result={nativeCalendar} />
+      ) : section.id === "briefing" ? (
+        <BriefingView briefing={briefing} isRunning={isRunning} onRun={onRun} />
       ) : (
         <>
           <SquareDashed size={40} strokeWidth={1.5} />

@@ -6,6 +6,8 @@ import SkillDataView from "./components/SkillDataView";
 import { SquareDashed } from "lucide-react";
 import { sectionById } from "./lib/sections";
 import { useSkillData } from "./hooks/useSkillData";
+import { readDailyBriefingReport } from "./lib/skillBridge";
+import type { SkillEnvelope } from "./lib/contract";
 import {
   applyFontSizes,
   applyTheme,
@@ -23,6 +25,13 @@ export default function App() {
   const section = sectionById(sectionId);
   const sectionSkills = useMemo(() => section?.skills ?? [], [section]);
   const { envelopes, failures, isReloading, activity, refresh } = useSkillData(sectionSkills);
+  const [briefingEnvelope, setBriefingEnvelope] = useState<SkillEnvelope | null>(null);
+  const [reloadCount, setReloadCount] = useState(0);
+
+  useEffect(() => {
+    if (sectionId !== "briefing") return;
+    void readDailyBriefingReport().then(setBriefingEnvelope);
+  }, [sectionId, reloadCount]);
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-color-scheme: dark)");
@@ -40,6 +49,11 @@ export default function App() {
     setThemeState(next);
   }, []);
 
+  const handleRefresh = useCallback(async () => {
+    await refresh(sectionSkills);
+    setReloadCount((count) => count + 1);
+  }, [refresh, sectionSkills]);
+
   return (
     <div className="jv-shell">
       <NavigationRail
@@ -56,7 +70,7 @@ export default function App() {
           onThemeChange={handleThemeChange}
           onOpenSettings={() => setSectionId("settings")}
           onRefresh={() => {
-            void refresh(sectionSkills);
+            void handleRefresh();
           }}
           isReloading={isReloading}
           activity={activity}
@@ -68,6 +82,11 @@ export default function App() {
               section={section}
               envelopes={envelopes}
               failures={failures}
+              briefingEnvelope={briefingEnvelope}
+              isRunning={isReloading}
+              onRun={() => {
+                void handleRefresh();
+              }}
             />
           ) : (
             <PlaceholderView

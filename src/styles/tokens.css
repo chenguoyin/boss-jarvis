@@ -29,6 +29,11 @@
   --jv-purple: #7067d9;
   --jv-verdict: #f0f8fe;
 
+  /* 语义状态色：urgent=红 / attention=琥珀 / normal=绿 / missing=弱文字 */
+  --jv-urgent: var(--jv-red);
+  --jv-attention: var(--jv-amber);
+  --jv-normal: var(--jv-green);
+
   /* 导航徽标：金色固定标识，两主题同值，深色文字保证可读 */
   --jv-badge: #f7de5c;
   --jv-badge-text: #252525;
@@ -63,6 +68,8 @@
 
   /* 圆角 */
   --jv-radius-card: 24px;
+  --jv-radius-kpi: 10px;
+  --jv-radius-section: 12px;
   --jv-radius-icon: 14px;
   --jv-radius-nav: 14px;
   --jv-radius-iconplain: 8px;
@@ -77,6 +84,7 @@
   --jv-shadow-nav-active: 0 8px 14px rgba(0, 0, 0, 0.18);
   --jv-shadow-pill: 0 12px 18px rgba(0, 0, 0, 0.22);
   --jv-shadow-theme: 0 2px 4px rgba(0, 0, 0, 0.08);
+  --jv-briefing-indent: 21px;
   --jv-stroke-white-82: rgba(255, 255, 255, 0.82);
   --jv-stroke-white-17: rgba(255, 255, 255, 0.17);
 
@@ -103,6 +111,10 @@
   --jv-red: #f27480;
   --jv-purple: #847ce2;
   --jv-verdict: #242c36;
+
+  --jv-urgent: var(--jv-red);
+  --jv-attention: var(--jv-amber);
+  --jv-normal: var(--jv-green);
 
   --jv-badge: #f7de5c;
   --jv-badge-text: #252525;

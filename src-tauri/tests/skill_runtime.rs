@@ -11,3 +11,13 @@ fn fetch_skill_manager_writes_contract_json() {
     assert_eq!(parsed["ok"], true);
     assert_eq!(parsed["mode"], "read_only");
 }
+
+#[test]
+#[ignore = "依赖本机 daily-briefing 巡检产物，按需手动验证"]
+fn read_daily_briefing_report_returns_latest_cockpit() {
+    let Some(text) = boss_jarvis_lib::read_daily_briefing_report_for_integration() else {
+        return;
+    };
+    let parsed: serde_json::Value = serde_json::from_str(&text).expect("晨报产物应为 JSON");
+    assert!(parsed["bossView"].is_object(), "晨报产物应包含 bossView 契约");
+}
