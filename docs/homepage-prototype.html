@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>老板驾驶舱 · 首页改版原型</title>
+<style>
+:root {
+  --page: #ECEEF0; --app: #FBFBFD; --panel: #F3F5F8; --card: #FFFFFF; --card-soft: #FAFAFB;
+  --text: #252939; --muted: #747B8D; --faint: #A2A8B5; --line: #E6E8ED;
+  --blue: #2797F5; --green: #23AD75; --amber: #E0B020; --red: #EC6070; --ink: #252525;
+  --shadow: 0 10px 28px rgba(0,0,0,.06);
+}
+html[data-theme="dark"] {
+  --page: #18191C; --app: #1E1F23; --panel: #26272C; --card: #2C2E34; --card-soft: #32343A;
+  --text: #E8EAF0; --muted: #9EA4B2; --faint: #6E7480; --line: #3A3C42;
+  --blue: #4AA8FA; --green: #34BE86; --amber: #ECBE34; --red: #F27480; --ink: #E8EAF0;
+  --shadow: 0 10px 28px rgba(0,0,0,.35);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif;
+  background: var(--page); color: var(--text); font-size: 13px; line-height: 1.55;
+}
+.shell { display: flex; min-height: 100vh; }
+.rail {
+  width: 72px; flex: 0 0 72px; background: var(--app); border-right: 1px solid var(--line);
+  display: flex; flex-direction: column; align-items: center; padding: 22px 0 16px; gap: 6px;
+  position: sticky; top: 0; height: 100vh;
+}
+.logo {
+  width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, var(--blue), #7069D9);
+  color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; margin-bottom: 18px;
+}
+.nav-item {
+  width: 52px; height: 52px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
+  color: var(--faint); cursor: pointer; position: relative; transition: background .15s, color .15s;
+}
+.nav-item:hover { background: color-mix(in srgb, var(--text) 7%, transparent); color: var(--text); }
+.nav-item.active {
+  background: linear-gradient(180deg, #3B3B3B, #080809); color: #fff;
+  box-shadow: 0 6px 14px rgba(0,0,0,.18);
+}
+html[data-theme="dark"] .nav-item.active { background: linear-gradient(180deg, #4A4B52, #2E2F36); }
+.nav-item svg { width: 17px; height: 17px; }
+.nav-item .dot { position: absolute; right: 10px; top: 10px; width: 5px; height: 5px; border-radius: 50%; background: var(--blue); }
+.rail .spacer { flex: 1; }
+.avatar {
+  width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, var(--blue), #847CD9);
+  color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px;
+}
+.main { flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--panel); }
+.topbar {
+  height: 60px; background: var(--app); border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: 12px; padding: 0 20px; position: sticky; top: 0; z-index: 20;
+}
+.topbar .brand { font-weight: 700; font-size: 14px; }
+.crumb { color: var(--muted); display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.topbar .grow { flex: 1; }
+.tb-btn {
+  height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--card);
+  color: var(--muted); font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+}
+.tb-btn:hover { color: var(--text); border-color: var(--faint); }
+.tb-btn svg { width: 13px; height: 13px; }
+.tb-seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--card); }
+.tb-seg button { border: 0; background: transparent; color: var(--muted); font-size: 12px; padding: 6px 10px; cursor: pointer; }
+.tb-seg button.on { background: var(--text); color: var(--app); }
+.content { padding: 20px; max-width: 1320px; width: 100%; margin: 0 auto; }
+.verdict {
+  display: flex; align-items: center; gap: 22px; padding: 18px 22px 14px; border-radius: 14px;
+  background: linear-gradient(120deg, color-mix(in srgb, var(--blue) 7%, var(--card)), var(--card));
+  border: 1px solid var(--line); box-shadow: var(--shadow); margin-bottom: 16px; flex-wrap: wrap;
+}
+.verdict .status { display: flex; align-items: center; gap: 8px; color: var(--muted); font-weight: 700; font-size: 13px; }
+.verdict .status .pulse { width: 9px; height: 9px; border-radius: 50%; background: var(--red); box-shadow: 0 0 0 4px color-mix(in srgb, var(--red) 22%, transparent); }
+.verdict .status.calm .pulse { background: var(--green); box-shadow: 0 0 0 4px color-mix(in srgb, var(--green) 22%, transparent); }
+.verdict .headline { font-size: 19px; font-weight: 800; letter-spacing: 0; }
+.verdict .headline b { color: var(--red); }
+.verdict.calm .headline b { color: var(--green); }
+.kpi-chips { display: flex; gap: 10px; flex-wrap: wrap; }
+.chip {
+  display: inline-flex; align-items: baseline; gap: 6px; padding: 7px 12px; border-radius: 10px;
+  background: var(--card-soft); border: 1px solid var(--line); font-size: 12px; color: var(--muted);
+}
+.chip b { font-size: 18px; color: var(--text); font-weight: 800; }
+.chip.danger b { color: var(--red); }
+.chip.warn b { color: var(--amber); }
+.primary-btn {
+  margin-left: auto; height: 44px; padding: 0 22px; border: 0; border-radius: 999px; cursor: pointer;
+  background: linear-gradient(180deg, #383838, #000); color: #fff; font-size: 13px; font-weight: 700;
+  display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 8px 18px rgba(0,0,0,.22);
+}
+.primary-btn:active { transform: scale(.98); }
+.primary-btn svg { width: 14px; height: 14px; }
+.freshness { width: 100%; color: var(--faint); font-size: 11px; display: flex; align-items: center; gap: 6px; }
+.grid { display: grid; grid-template-columns: 7fr 5fr; gap: 16px; margin-bottom: 16px; }
+.grid.full { grid-template-columns: 1fr; }
+.card {
+  background: var(--card); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow);
+  display: flex; flex-direction: column; min-width: 0;
+}
+.card-head { display: flex; align-items: center; gap: 10px; padding: 16px 18px 0; }
+.card-head .mark { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--blue) 12%, transparent); color: var(--blue); }
+.card-head .mark.red { background: color-mix(in srgb, var(--red) 12%, transparent); color: var(--red); }
+.card-head .mark.amber { background: color-mix(in srgb, var(--amber) 14%, transparent); color: var(--amber); }
+.card-head .mark.green { background: color-mix(in srgb, var(--green) 13%, transparent); color: var(--green); }
+.card-head .mark svg { width: 16px; height: 16px; }
+.card-head .t { font-weight: 700; font-size: 14px; }
+.card-head .t small { display: block; color: var(--muted); font-weight: 400; font-size: 11px; margin-top: 1px; }
+.card-head .right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.count-pill { font-size: 12px; color: var(--muted); }
+.count-pill b { font-size: 16px; color: var(--text); font-weight: 800; }
+.count-pill.danger b { color: var(--red); }
+.card-foot { padding: 10px 18px 12px; color: var(--faint); font-size: 11px; border-top: 1px dashed var(--line); margin-top: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.todo-list { padding: 12px 18px 6px; display: flex; flex-direction: column; }
+.todo { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--line); }
+.todo:last-child { border-bottom: 0; }
+.lv { width: 6px; height: 34px; border-radius: 3px; flex: 0 0 6px; }
+.lv.red { background: var(--red); } .lv.yellow { background: var(--amber); } .lv.green { background: var(--green); }
+.todo .body { flex: 1; min-width: 0; }
+.todo .title { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.todo .meta { color: var(--muted); font-size: 11px; display: flex; gap: 8px; flex-wrap: wrap; margin-top: 2px; }
+.todo .meta .ddl { color: var(--red); font-weight: 600; }
+.act-btn {
+  height: 32px; padding: 0 14px; border-radius: 9px; border: 1px solid var(--line); background: var(--card-soft);
+  color: var(--text); font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;
+}
+.act-btn:hover { border-color: var(--blue); color: var(--blue); }
+.act-btn.solid { background: var(--blue); border-color: var(--blue); color: #fff; }
+.act-btn.solid:hover { filter: brightness(1.06); color: #fff; }
+.more-link { padding: 10px 18px 14px; color: var(--blue); font-size: 12px; cursor: pointer; font-weight: 600; }
+.agg-list { padding: 14px 18px 6px; display: flex; flex-direction: column; gap: 10px; }
+.agg {
+  display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-radius: 11px;
+  background: var(--card-soft); border: 1px solid var(--line); cursor: pointer;
+}
+.agg:hover { border-color: var(--blue); }
+.agg .n { font-size: 20px; font-weight: 800; min-width: 34px; text-align: center; }
+.agg .n.red { color: var(--red); } .agg .n.normal { color: var(--text); }
+.agg .label { flex: 1; }
+.agg .label .name { font-weight: 600; font-size: 13px; }
+.agg .label .sub { color: var(--muted); font-size: 11px; }
+.agg .chev { color: var(--faint); }
+.fold-note { padding: 0 18px 12px; color: var(--faint); font-size: 11px; }
+.metric-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; padding: 14px 18px 16px; }
+.metric {
+  padding: 13px 14px; border-radius: 11px; background: var(--card-soft); border: 1px solid var(--line);
+  display: flex; flex-direction: column; gap: 4px; min-width: 0;
+}
+.metric .name { color: var(--muted); font-size: 11px; display: flex; justify-content: space-between; align-items: center; }
+.metric .val { font-size: 21px; font-weight: 800; letter-spacing: 0; }
+.metric .delta { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 4px; }
+.metric .delta.up { color: var(--green); } .metric .delta.down { color: var(--red); }
+.metric.alert { border-color: color-mix(in srgb, var(--red) 55%, var(--line)); background: color-mix(in srgb, var(--red) 6%, var(--card-soft)); }
+.metric.alert .val { color: var(--red); }
+.metric.missing .val { color: var(--faint); font-size: 14px; font-weight: 600; }
+.tag { font-size: 10px; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--line); color: var(--faint); }
+.tag.red { color: var(--red); border-color: color-mix(in srgb, var(--red) 45%, var(--line)); }
+.tag.amber { color: var(--amber); border-color: color-mix(in srgb, var(--amber) 45%, var(--line)); }
+.risk-list { padding: 12px 18px 8px; display: flex; flex-direction: column; }
+.risk { padding: 11px 0; border-bottom: 1px solid var(--line); }
+.risk:last-child { border-bottom: 0; }
+.risk .row1 { display: flex; align-items: center; gap: 8px; }
+.risk .impact { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 6px; }
+.risk .impact.high { background: color-mix(in srgb, var(--red) 13%, transparent); color: var(--red); }
+.risk .impact.mid { background: color-mix(in srgb, var(--amber) 15%, transparent); color: var(--amber); }
+.risk .impact.low { background: color-mix(in srgb, var(--green) 13%, transparent); color: var(--green); }
+.risk .txt { flex: 1; font-weight: 600; font-size: 13px; }
+.risk .advice {
+  margin-top: 7px; padding: 9px 12px; border-radius: 9px; font-size: 12px; color: var(--text);
+  background: color-mix(in srgb, var(--blue) 7%, var(--card-soft)); border: 1px solid color-mix(in srgb, var(--blue) 22%, var(--line));
+  display: flex; gap: 8px; align-items: flex-start;
+}
+.risk .advice .ai { color: var(--blue); font-weight: 700; white-space: nowrap; font-size: 11px; padding-top: 1px; }
+.risk .src { color: var(--faint); font-size: 11px; margin-top: 6px; }
+.mail-list { padding: 12px 18px 8px; }
+.mail { display: flex; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--line); align-items: flex-start; }
+.mail:last-child { border-bottom: 0; }
+.mail .body { flex: 1; min-width: 0; }
+.mail .subject { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mail .from { color: var(--muted); font-size: 11px; margin-top: 2px; }
+.mail .basis { color: var(--faint); font-size: 11px; margin-top: 3px; display: flex; gap: 6px; align-items: center; }
+.mail .basis .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--amber); flex: 0 0 5px; }
+.empty {
+  margin: 16px 18px 18px; padding: 26px 18px; border-radius: 12px; text-align: center;
+  background: var(--card-soft); border: 1px dashed var(--line);
+}
+.empty .tick {
+  width: 42px; height: 42px; margin: 0 auto 10px; border-radius: 50%;
+  background: color-mix(in srgb, var(--green) 13%, transparent); color: var(--green);
+  display: flex; align-items: center; justify-content: center;
+}
+.empty .tick svg { width: 20px; height: 20px; }
+.empty .t { font-weight: 700; font-size: 14px; }
+.empty .s { color: var(--muted); font-size: 12px; margin-top: 4px; }
+.drawer-mask { position: fixed; inset: 0; background: rgba(0,0,0,.32); z-index: 40; display: none; }
+.drawer-mask.open { display: block; }
+.drawer {
+  position: fixed; top: 0; right: -380px; width: 360px; height: 100vh; background: var(--app); z-index: 50;
+  border-left: 1px solid var(--line); box-shadow: -12px 0 34px rgba(0,0,0,.18); transition: right .22s ease;
+  display: flex; flex-direction: column;
+}
+.drawer.open { right: 0; }
+.drawer .dh { padding: 18px 18px 12px; border-bottom: 1px solid var(--line); display: flex; align-items: center; }
+.drawer .dh .t { font-weight: 700; font-size: 14px; }
+.drawer .dh .x { margin-left: auto; cursor: pointer; color: var(--muted); font-size: 16px; padding: 4px 8px; border-radius: 6px; }
+.drawer .dh .x:hover { background: var(--card-soft); color: var(--text); }
+.drawer .db { flex: 1; overflow-y: auto; padding: 12px; }
+.drawer .hint { color: var(--muted); font-size: 11px; padding: 4px 6px 10px; }
+.mod-row {
+  display: flex; align-items: center; gap: 10px; padding: 11px 12px; border: 1px solid var(--line);
+  border-radius: 11px; background: var(--card); margin-bottom: 8px;
+}
+.mod-row .grip { color: var(--faint); cursor: grab; font-size: 15px; letter-spacing: 1px; }
+.mod-row .name { flex: 1; font-weight: 600; font-size: 13px; }
+.mod-row .name small { display: block; color: var(--muted); font-weight: 400; font-size: 11px; }
+.icon-btn {
+  width: 28px; height: 28px; border-radius: 7px; border: 1px solid var(--line); background: var(--card-soft);
+  color: var(--muted); cursor: pointer; font-size: 12px;
+}
+.icon-btn:hover:not(:disabled) { color: var(--text); border-color: var(--faint); }
+.icon-btn:disabled { opacity: .35; cursor: default; }
+.switch { position: relative; width: 36px; height: 20px; border-radius: 999px; background: var(--line); cursor: pointer; transition: background .15s; border: 0; }
+.switch.on { background: var(--green); }
+.switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: left .15s; }
+.switch.on::after { left: 18px; }
+.drawer .df { padding: 12px 16px; border-top: 1px solid var(--line); display: flex; gap: 10px; }
+.drawer .df .tb-btn { flex: 1; justify-content: center; }
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(8px); opacity: 0;
+  background: var(--ink); color: #FBFBFD; padding: 9px 16px; border-radius: 10px; font-size: 12px;
+  pointer-events: none; transition: opacity .18s, transform .18s; z-index: 60; max-width: 80vw;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+@media (max-width: 980px) {
+  .grid { grid-template-columns: 1fr; }
+  .metric-row { grid-template-columns: repeat(2, 1fr); }
+  .verdict .headline { font-size: 16px; }
+}
+@media (max-width: 767px) {
+  .rail { display: none; }
+  .content { padding: 12px; }
+  .verdict { padding: 14px 16px; gap: 12px; }
+  .verdict .headline { font-size: 15px; }
+  .kpi-chips { gap: 8px; }
+  .chip b { font-size: 22px; }
+  .primary-btn { margin-left: 0; width: 100%; justify-content: center; }
+  .metric-row { grid-template-columns: 1fr 1fr; }
+  .todo { flex-wrap: wrap; }
+  .todo .act-btn { width: 100%; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="rail">
+    <div class="logo">B</div>
+    <div class="nav-item active" title="驾驶舱"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 13h8V3H3v10zm10 8h8V11h-8v10zM3 21h8v-6H3v6zM13 9h8V3h-8v6z"/></svg><span class="dot"></span></div>
+    <div class="nav-item" title="OA 待办"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6h.01M4 12h.01M4 18h.01"/></svg></div>
+    <div class="nav-item" title="邮件"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg></div>
+    <div class="nav-item" title="日历提醒"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 11h18"/></svg></div>
+    <div class="nav-item" title="经营情况"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></div>
+    <div class="nav-item" title="确认中心"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l7 4v5c0 5-3.5 8-7 9-3.5-1-7-4-7-9V7l7-4z"/><path d="m9 12 2 2 4-4"/></svg></div>
+    <div class="spacer"></div>
+    <div class="avatar">B</div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <span class="brand">Boss Jarvis</span>
+      <span class="crumb">› 驾驶舱</span>
+      <div class="grow"></div>
+      <div class="tb-seg" id="themeSeg">
+        <button data-theme-mode="light">浅色</button>
+        <button data-theme-mode="dark">深色</button>
+      </div>
+      <button class="tb-btn" id="emptyToggle">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.1V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+        空状态演示：关
+      </button>
+      <button class="tb-btn" id="customizeBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="8" cy="18" r="2"/></svg>
+        自定义模块
+      </button>
+      <button class="tb-btn" id="refreshBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+        刷新
+      </button>
+    </header>
+
+    <div class="content" id="modules">
+      <!-- 0 全局结论条 -->
+      <section class="verdict" data-module="verdict" id="mod-verdict">
+        <div class="status" id="verdictStatus"><span class="pulse"></span><span>需要行动</span></div>
+        <div class="headline" id="verdictHeadline">今日 <b>11</b> 项需处理，<b>2</b> 项紧急，邮件 <b>8</b> 封待回复</div>
+        <div class="kpi-chips">
+          <span class="chip danger"><b>2</b>紧急</span>
+          <span class="chip warn"><b>9</b>关注</span>
+          <span class="chip"><b>3</b>OA 审批</span>
+          <span class="chip"><b>0</b>今日会议</span>
+        </div>
+        <button class="primary-btn" id="startBtn">
+          开始处理第 1 项
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+        <div class="freshness">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+          数据更新于 08-19 15:45 · 来源：OA / 企业邮箱 / 日历提醒 / 虹翼 · 每 15 分钟自动刷新
+        </div>
+      </section>
+
+      <div class="grid">
+        <!-- 1 今日待办提醒 -->
+        <section class="card" data-module="todo" id="mod-todo">
+          <div class="card-head">
+            <div class="mark red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.7 3.86a2 2 0 0 0-3.4 0z"/></svg></div>
+            <div class="t">今日待办提醒<small>按紧急度排序 · 只列 Top 3</small></div>
+            <div class="right"><span class="count-pill danger"><b>2</b> 项紧急</span></div>
+          </div>
+          <div class="todo-list" id="todoList">
+            <div class="todo">
+              <span class="lv red"></span>
+              <div class="body">
+                <div class="title">田一怡下班忘打卡申请打卡异常（本年已申请 15 次）</div>
+                <div class="meta"><span>OA 审批</span><span>08-18 13:11</span><span class="ddl">今日未处理，已置顶</span></div>
+              </div>
+              <button class="act-btn solid" data-action="去处理：田一怡打卡异常审批">去处理</button>
+            </div>
+            <div class="todo">
+              <span class="lv red"></span>
+              <div class="body">
+                <div class="title">邮箱容量将满，影响后续收件</div>
+                <div class="meta"><span>企业邮箱</span><span>08-12 15:00</span><span class="ddl">容量风险，今日清理</span></div>
+              </div>
+              <button class="act-btn" data-action="去处理：邮箱容量清理">去处理</button>
+            </div>
+            <div class="todo">
+              <span class="lv yellow"></span>
+              <div class="body">
+                <div class="title">田一怡司库上线测试现场支持出差 5 天申请（08-17 至 08-21）</div>
+                <div class="meta"><span>OA 审批</span><span>08-18 13:09</span><span>出差进行中，需今日审批</span></div>
+              </div>
+              <button class="act-btn" data-action="去处理：田一怡出差审批">去处理</button>
+            </div>
+          </div>
+          <div class="empty" id="todoEmpty" style="display:none">
+            <div class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg></div>
+            <div class="t">今日无紧急事项</div>
+            <div class="s">16 项低优先级提醒已在后台归档，可随时查看</div>
+          </div>
+          <div class="card-foot">来源：统一提醒中心 · 更新 08-19 15:44</div>
+        </section>
+
+        <!-- 2 今日需处理事项 -->
+        <section class="card" data-module="summary" id="mod-summary">
+          <div class="card-head">
+            <div class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg></div>
+            <div class="t">今日需处理事项<small>跨系统聚合 · 点击进入对应系统</small></div>
+            <div class="right"><span class="count-pill"><b>11</b> 项待办</span></div>
+          </div>
+          <div class="agg-list">
+            <div class="agg" data-action="查看 OA 待办列表">
+              <span class="n red">3</span>
+              <div class="label"><div class="name">OA 审批</div><div class="sub">含 1 项红色优先 · 2 项打卡异常 + 1 项用印审批</div></div>
+              <span class="chev">›</span>
+            </div>
+            <div class="agg" data-action="查看需回复邮件">
+              <span class="n">8</span>
+              <div class="label"><div class="name">邮件待回复</div><div class="sub">未读 25 封 · 1 封紧急</div></div>
+              <span class="chev">›</span>
+            </div>
+            <div class="agg" data-action="查看今日日程">
+              <span class="n normal">0</span>
+              <div class="label"><div class="name">今日会议 / 日程</div><div class="sub">日历无今日事件 · 逾期提醒 0</div></div>
+              <span class="chev">›</span>
+            </div>
+          </div>
+          <div class="fold-note">低优先级已折叠 16 项，全部 27 项见统一提醒清单</div>
+          <div class="card-foot">来源：OA / 企业邮箱 / 日历提醒 · 更新 08-19 15:45</div>
+        </section>
+      </div>
+
+      <!-- 3 经营情况速览 -->
+      <section class="card" data-module="metrics" id="mod-metrics" style="margin-bottom:16px">
+        <div class="card-head">
+          <div class="mark green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></div>
+          <div class="t">经营情况速览<small>今日 · 本月 · 年度 · 虹翼口径</small></div>
+          <div class="right"><span class="tag amber">2 项指标未获取</span></div>
+        </div>
+        <div class="metric-row">
+          <div class="metric">
+            <div class="name"><span>今日收入确认</span><span class="tag">今日</span></div>
+            <div class="val">0<span style="font-size:12px;font-weight:600"> 笔 / 0.00</span></div>
+            <div class="delta">今日暂无新增确认</div>
+          </div>
+          <div class="metric missing">
+            <div class="name"><span>本月收入</span><span class="tag amber">未获取</span></div>
+            <div class="val">部门看板字段待接入</div>
+            <div class="delta">同环比待 Skill 补上期值</div>
+          </div>
+          <div class="metric missing">
+            <div class="name"><span>年度利润</span><span class="tag amber">未获取</span></div>
+            <div class="val">部门看板字段待接入</div>
+            <div class="delta">同环比待 Skill 补上期值</div>
+          </div>
+          <div class="metric missing">
+            <div class="name"><span>应收余额</span><span class="tag amber">未获取</span></div>
+            <div class="val">未接入</div>
+            <div class="delta">取数字段待虹翼 Skill 输出</div>
+          </div>
+          <div class="metric missing">
+            <div class="name"><span>逾期应收</span><span class="tag red">需监控</span></div>
+            <div class="val">未接入</div>
+            <div class="delta">接入后超阈值自动标红</div>
+          </div>
+        </div>
+        <div class="card-foot">来源：虹翼系统 · 今日专项更新 08-19 15:41 · 经营总览更新 08-19 15:44 · 点击进入经营情况页</div>
+      </section>
+
+      <div class="grid">
+        <!-- 4 风险提示与建议 -->
+        <section class="card" data-module="risk" id="mod-risk">
+          <div class="card-head">
+            <div class="mark amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.7 3.86a2 2 0 0 0-3.4 0z"/></svg></div>
+            <div class="t">风险提示与建议<small>影响程度分级 · AI 建议可直接采纳</small></div>
+            <div class="right"><span class="count-pill"><b>1</b> 高影响</span></div>
+          </div>
+          <div class="risk-list" id="riskList">
+            <div class="risk">
+              <div class="row1"><span class="impact high">高</span><span class="txt">在跟项目超期 52 个，占比 42%，双周进度更新率仅 40%</span></div>
+              <div class="advice"><span class="ai">AI 建议</span><span>今日要求项目办输出超期 Top 10 清单与责任人，本周五前逐项给出纠偏或关闭结论。</span></div>
+              <div class="src">来源：项目进度跟踪简报（08-14）· 交付项目共 125 个</div>
+            </div>
+            <div class="risk">
+              <div class="row1"><span class="impact mid">中</span><span class="txt">邮箱容量将满，可能阻塞后续邮件接收</span></div>
+              <div class="advice"><span class="ai">AI 建议</span><span>今日清理 CodeReview 等报告类邮箱并归档大附件，清理后回复容量告警邮件确认恢复。</span></div>
+              <div class="src">来源：企业邮箱容量告警（08-12）</div>
+            </div>
+            <div class="risk">
+              <div class="row1"><span class="impact low">低</span><span class="txt">贵金属财务共享项目遗留运维问题 2 项</span></div>
+              <div class="advice"><span class="ai">AI 建议</span><span>本周内让运维方确认遗留问题解决排期，暂不需老板介入。</span></div>
+              <div class="src">来源：贵金属财务共享运维周报（08-14）</div>
+            </div>
+          </div>
+          <div class="empty" id="riskEmpty" style="display:none">
+            <div class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg></div>
+            <div class="t">当前无高风险项</div>
+            <div class="s">应收、项目与合同风险均在阈值内，持续监控中</div>
+          </div>
+          <div class="card-foot">来源：统一提醒中心 / 邮件分析 / 虹翼 · 更新 08-19 15:45</div>
+        </section>
+
+        <!-- 5 待回复邮件 -->
+        <section class="card" data-module="mail" id="mod-mail">
+          <div class="card-head">
+            <div class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg></div>
+            <div class="t">待回复邮件<small>按紧急度与时间排序 · 前 3 封</small></div>
+            <div class="right"><span class="count-pill"><b>8</b> 待回复</span></div>
+          </div>
+          <div class="mail-list" id="mailList">
+            <div class="mail">
+              <div class="body">
+                <div class="subject">项目进度跟踪简报（统计截止 2026-08-14 17 点）</div>
+                <div class="from">gpgmo@changhong.com · 08-14 18:09</div>
+                <div class="basis"><span class="dot"></span>正文包含明确请求动作 · 在跟项目 125 个</div>
+              </div>
+              <button class="act-btn" data-action="回复：项目进度跟踪简报">回复</button>
+            </div>
+            <div class="mail">
+              <div class="body">
+                <div class="subject">藏格矿业项目运维工作周报 20260810-0814</div>
+                <div class="from">renwenhui@changhong.com · 08-14 17:56</div>
+                <div class="basis"><span class="dot"></span>请查收类请求 · 本周处理运维问题 1 项</div>
+              </div>
+              <button class="act-btn" data-action="回复：藏格矿业运维周报">回复</button>
+            </div>
+            <div class="mail">
+              <div class="body">
+                <div class="subject">贵金属财务共享项目运维工作周报 20260810-0814</div>
+                <div class="from">renwenhui@changhong.com · 08-14 17:56</div>
+                <div class="basis"><span class="dot"></span>请查收类请求 · 遗留问题 2 项</div>
+              </div>
+              <button class="act-btn" data-action="回复：贵金属运维周报">回复</button>
+            </div>
+          </div>
+          <div class="empty" id="mailEmpty" style="display:none">
+            <div class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg></div>
+            <div class="t">暂无待回复邮件</div>
+            <div class="s">未读邮件均已判定为阅读掌握类</div>
+          </div>
+          <div class="more-link" id="mailMore">查看全部 8 封待回复 ›</div>
+          <div class="card-foot">来源：企业邮箱 · 更新 08-19 15:42 · 回复在邮件客户端打开草稿，由您发送</div>
+        </section>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="drawer-mask" id="drawerMask"></div>
+<aside class="drawer" id="drawer">
+  <div class="dh">
+    <span class="t">自定义首页模块</span>
+    <span class="x" id="drawerClose">✕</span>
+  </div>
+  <div class="db">
+    <div class="hint">拖动手柄或用上下按钮排序；开关控制模块显隐。配置自动保存，刷新后仍生效。</div>
+    <div id="modRows"></div>
+  </div>
+  <div class="df">
+    <button class="tb-btn" id="resetModules">恢复默认</button>
+    <button class="tb-btn" id="showAllModules">全部显示</button>
+  </div>
+</aside>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const MODULES = [
+  { id: "verdict", name: "全局结论条", desc: "10 秒掌握今日全局", target: "mod-verdict" },
+  { id: "todo", name: "今日待办提醒", desc: "紧急事项 Top 3", target: "mod-todo" },
+  { id: "summary", name: "今日需处理事项", desc: "跨系统聚合计数", target: "mod-summary" },
+  { id: "metrics", name: "经营情况速览", desc: "5 个核心指标", target: "mod-metrics" },
+  { id: "risk", name: "风险提示与建议", desc: "分级风险 + AI 建议", target: "mod-risk" },
+  { id: "mail", name: "待回复邮件", desc: "需回复 Top 3", target: "mod-mail" }
+];
+
+const store = {
+  key: "boss-home-modules",
+  load() {
+    try { return JSON.parse(localStorage.getItem(this.key)) || null; } catch (e) { return null; }
+  },
+  save(cfg) { localStorage.setItem(this.key, JSON.stringify(cfg)); }
+};
+
+let config = store.load() || { order: MODULES.map(m => m.id), hidden: [] };
+if (!config.order || !Array.isArray(config.hidden)) {
+  config = { order: MODULES.map(m => m.id), hidden: [] };
+}
+
+const $ = sel => document.querySelector(sel);
+const toastEl = $("#toast");
+let toastTimer = null;
+function toast(msg) {
+  toastEl.textContent = msg;
+  toastEl.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove("show"), 1800);
+}
+
+function applyLayout() {
+  const container = $("#modules");
+  const verdict = container.querySelector(".verdict");
+  const groups = Array.from(container.querySelectorAll(":scope > .grid"));
+  config.order.forEach(id => {
+    const mod = MODULES.find(m => m.id === id);
+    if (!mod) return;
+    const el = document.getElementById(mod.target);
+    if (!el) return;
+    el.style.display = config.hidden.includes(id) ? "none" : "";
+    if (id === "verdict") {
+      container.insertBefore(el, container.firstChild);
+    } else {
+      const parent = el.parentElement;
+      const targetParent = (id === "todo" || id === "summary" || id === "risk" || id === "mail")
+        ? (id === "todo" || id === "risk" ? groups[0] : groups[0])
+        : container;
+      if (parent !== targetParent) targetParent.appendChild(el);
+    }
+  });
+  // 结论条永远置顶；隐藏模块的原占位容器保持结构
+  if (verdict) container.insertBefore(verdict, container.firstChild);
+}
+
+function renderDrawer() {
+  const wrap = $("#modRows");
+  wrap.innerHTML = "";
+  config.order.forEach((id, index) => {
+    const mod = MODULES.find(m => m.id === id);
+    if (!mod) return;
+    const row = document.createElement("div");
+    row.className = "mod-row";
+    row.innerHTML =
+      '<span class="grip" title="拖动排序">⠿</span>' +
+      '<div class="name">' + mod.name + '<small>' + mod.desc + '</small></div>' +
+      '<button class="icon-btn up" ' + (index === 0 ? "disabled" : "") + ' title="上移">↑</button>' +
+      '<button class="icon-btn down" ' + (index === config.order.length - 1 ? "disabled" : "") + ' title="下移">↓</button>' +
+      '<button class="switch ' + (config.hidden.includes(id) ? "" : "on") + '" title="显示/隐藏"></button>';
+    row.querySelector(".up").onclick = () => { move(id, -1); };
+    row.querySelector(".down").onclick = () => { move(id, 1); };
+    row.querySelector(".switch").onclick = () => toggle(id);
+    row.querySelector(".grip").draggable = true;
+    row.querySelector(".grip").addEventListener("dragstart", e => e.dataTransfer.setData("text/plain", id));
+    row.addEventListener("dragover", e => e.preventDefault());
+    row.addEventListener("drop", e => {
+      e.preventDefault();
+      const from = e.dataTransfer.getData("text/plain");
+      reorder(from, id);
+    });
+    wrap.appendChild(row);
+  });
+}
+
+function move(id, delta) {
+  const i = config.order.indexOf(id);
+  const j = i + delta;
+  if (i < 0 || j < 0 || j >= config.order.length) return;
+  [config.order[i], config.order[j]] = [config.order[j], config.order[i]];
+  persistAndRender();
+}
+
+function reorder(fromId, toId) {
+  if (fromId === toId) return;
+  const from = config.order.indexOf(fromId);
+  if (from < 0) return;
+  config.order.splice(from, 1);
+  const to = config.order.indexOf(toId);
+  config.order.splice(to + 1, 0, fromId);
+  persistAndRender();
+}
+
+function toggle(id) {
+  if (id === "verdict") { toast("全局结论条是 10 秒结论的入口，建议保留"); return; }
+  const i = config.hidden.indexOf(id);
+  if (i >= 0) config.hidden.splice(i, 1); else config.hidden.push(id);
+  persistAndRender();
+}
+
+function persistAndRender() {
+  store.save(config);
+  applyLayout();
+  renderDrawer();
+}
+
+$("#customizeBtn").onclick = () => { $("#drawer").classList.add("open"); $("#drawerMask").classList.add("open"); };
+$("#drawerClose").onclick = $("#drawerMask").onclick = () => {
+  $("#drawer").classList.remove("open");
+  $("#drawerMask").classList.remove("open");
+};
+$("#resetModules").onclick = () => {
+  config = { order: MODULES.map(m => m.id), hidden: [] };
+  persistAndRender();
+  toast("已恢复默认布局");
+};
+$("#showAllModules").onclick = () => {
+  config.hidden = [];
+  persistAndRender();
+  toast("已显示全部模块");
+};
+
+// 主题
+const themeSeg = $("#themeSeg");
+function setTheme(mode) {
+  document.documentElement.dataset.theme = mode;
+  localStorage.setItem("boss-home-theme", mode);
+  themeSeg.querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.themeMode === mode));
+}
+themeSeg.addEventListener("click", e => {
+  const btn = e.target.closest("button[data-theme-mode]");
+  if (btn) setTheme(btn.dataset.themeMode);
+});
+setTheme(localStorage.getItem("boss-home-theme") || "light");
+
+// 空状态演示
+let emptyMode = false;
+$("#emptyToggle").onclick = () => {
+  emptyMode = !emptyMode;
+  $("#emptyToggle").lastChild.textContent = " 空状态演示：" + (emptyMode ? "开" : "关");
+  $("#verdictStatus").className = "status" + (emptyMode ? " calm" : "");
+  $("#verdictStatus").querySelector("span:last-child").textContent = emptyMode ? "状态良好" : "需要行动";
+  $("#verdictHeadline").innerHTML = emptyMode
+    ? '今日无紧急事项，<b style="color:var(--green)">0</b> 项需处理，邮件无需回复'
+    : '今日 <b>11</b> 项需处理，<b>2</b> 项紧急，邮件 <b>8</b> 封待回复';
+  $("#verdictHeadline").parentElement.classList.toggle("calm", emptyMode);
+  ["todoList", "todoEmpty"].forEach(id => $("#" + id).style.display = emptyMode && id === "todoList" ? "none" : (emptyMode ? "" : (id === "todoEmpty" ? "none" : "")));
+  $("#todoEmpty").style.display = emptyMode ? "" : "none";
+  $("#todoList").style.display = emptyMode ? "none" : "";
+  ["riskList", "riskEmpty"].forEach(id => $("#" + id).style.display = emptyMode && id === "riskList" ? "none" : "");
+  $("#riskEmpty").style.display = emptyMode ? "" : "none";
+  $("#riskList").style.display = emptyMode ? "none" : "";
+  ["mailList", "mailEmpty"].forEach(id => $("#" + id).style.display = emptyMode && id === "mailList" ? "none" : "");
+  $("#mailEmpty").style.display = emptyMode ? "" : "none";
+  $("#mailList").style.display = emptyMode ? "none" : "";
+  $("#mailMore").style.display = emptyMode ? "none" : "";
+  toast(emptyMode ? "已切换到无待办的正向空状态" : "已恢复真实数据状态");
+};
+
+// 动作反馈
+document.addEventListener("click", e => {
+  const act = e.target.closest("[data-action]");
+  if (act) toast(act.dataset.action);
+});
+$("#startBtn").onclick = () => toast("跳转：田一怡打卡异常审批（OA 待办弹层）");
+$("#refreshBtn").onclick = () => toast("已触发全部 Skill 取数：OA / 邮件 / 日历 / 虹翼");
+$("#mailMore").onclick = () => toast("跳转：邮件页（仅显示需回复 8 封）");
+
+applyLayout();
+renderDrawer();
+</script>
+</body>
+</html>

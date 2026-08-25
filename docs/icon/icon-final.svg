@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#EDF1F7"/>
+    </linearGradient>
+    <linearGradient id="topLight" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.7"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="botShade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#B9C4D6" stop-opacity="0"/>
+      <stop offset="1" stop-color="#B9C4D6" stop-opacity="0.22"/>
+    </linearGradient>
+    <linearGradient id="bigStar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5B9BF8"/>
+      <stop offset="0.55" stop-color="#3B82F6"/>
+      <stop offset="1" stop-color="#2F6AE0"/>
+    </linearGradient>
+    <linearGradient id="midStar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7FB0FA"/>
+      <stop offset="1" stop-color="#4E8DF7"/>
+    </linearGradient>
+    <linearGradient id="smallStar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#93BEFB"/>
+      <stop offset="1" stop-color="#5E9AF8"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="1024" height="1024" fill="url(#bgGrad)"/>
+  <rect x="0" y="0" width="1024" height="240" fill="url(#topLight)"/>
+  <rect x="0" y="784" width="1024" height="240" fill="url(#botShade)"/>
+  <path d="M 530 332 C 541 343, 575 550, 793 595 C 782 606, 575 640, 530 858 C 519 847, 485 640, 267 595 C 278 584, 485 550, 530 332 Z" fill="url(#bigStar)"/>
+  <path d="M 390 333 C 393 336, 401 384, 452 395 C 449 398, 401 406, 390 457 C 387 454, 379 406, 328 395 C 331 392, 379 384, 390 333 Z" fill="url(#midStar)"/>
+  <path d="M 470 232 C 472 234, 477 265, 510 272 C 508 274, 477 279, 470 312 C 468 310, 463 279, 430 272 C 432 270, 463 265, 470 232 Z" fill="url(#smallStar)"/>
+</svg>

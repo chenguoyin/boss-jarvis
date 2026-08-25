@@ -1,0 +1,29 @@
+.build/
+.swiftpm/
+DerivedData/
+*.xcuserdata/
+*.xcuserstate
+*.DS_Store
+*.env
+*.log
+*.exe
+*.zip
+*.app
+
+# Node / 前端构建产物
+node_modules/
+dist/
+dist-windows/
+.vite/
+
+# Tauri 构建产物
+src-tauri/target/
+src-tauri/gen/
+
+# 凭证与本地配置（绝不进库）
+skill-env.conf
+
+# 图标构建中间产物 (make-icon.sh 生成)
+docs/icon/master*.png
+docs/icon/rounded-*.png
+docs/icon/AppIcon*.iconset/
