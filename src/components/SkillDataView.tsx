@@ -10,6 +10,8 @@ import BriefingView from "./BriefingView";
 import { parseDailyBriefing } from "@/lib/dailyBriefing";
 import WeeklySummaryView from "./WeeklySummaryView";
 import { parseWeeklySummary } from "@/lib/weeklySummary";
+import HongyiBusinessView from "./HongyiBusinessView";
+import { buildHongyiSnapshot } from "@/lib/hongyiBusiness";
 
 interface Props {
   section: AppSection;
@@ -53,6 +55,10 @@ export default function SkillDataView({
     : null;
   const briefing = briefingEnvelope ? parseDailyBriefing(briefingEnvelope) : null;
   const weeklySummary = parseWeeklySummary(weekly.raw);
+  const hongyiSnapshot = buildHongyiSnapshot(
+    envelopes["hongyi-today-metrics"] as import("@/lib/contract").SkillEnvelope | null ?? null,
+    envelopes["hongyi-business-overview"] as import("@/lib/contract").SkillEnvelope | null ?? null,
+  );
 
   return (
     <div className="jv-placeholder">
@@ -78,6 +84,8 @@ export default function SkillDataView({
           selectedDate={weekly.selectedDate}
           onSelectDate={weekly.onSelectDate}
         />
+      ) : section.id === "business" ? (
+        <HongyiBusinessView snapshot={hongyiSnapshot} />
       ) : (
         <>
           <SquareDashed size={40} strokeWidth={1.5} />

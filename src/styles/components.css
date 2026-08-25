@@ -656,6 +656,77 @@
   color: var(--jv-faint);
 }
 
+/* ---------- 经营情况 ---------- */
+.jv-hongyi-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--jv-text);
+  font-weight: 600;
+  margin-top: 16px;
+}
+
+.jv-hongyi-section-title svg {
+  color: var(--jv-blue);
+}
+
+.jv-hongyi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.jv-hongyi-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  background: var(--jv-card-soft);
+  border-radius: var(--jv-radius-kpi);
+}
+
+.jv-hongyi-metric .jv-title {
+  color: var(--jv-text);
+}
+
+.jv-hongyi-alert .jv-caption,
+.jv-hongyi-alert .jv-title {
+  color: var(--jv-urgent);
+}
+
+.jv-hongyi-quality {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+  padding: 12px;
+  margin-top: 14px;
+  background: var(--jv-card-soft);
+  border: 1px solid color-mix(in srgb, var(--jv-urgent) 40%, transparent);
+  border-radius: var(--jv-radius-theme);
+}
+
+.jv-hongyi-quality .jv-caption {
+  color: var(--jv-text);
+}
+
+.jv-hongyi-status-normal {
+  background: color-mix(in srgb, var(--jv-normal) 12%, transparent);
+  color: var(--jv-normal);
+}
+
+.jv-hongyi-status-attention {
+  background: color-mix(in srgb, var(--jv-attention) 12%, transparent);
+  color: var(--jv-attention);
+}
+
+.jv-hongyi-status-urgent,
+.jv-hongyi-status-missing {
+  background: color-mix(in srgb, var(--jv-urgent) 12%, transparent);
+  color: var(--jv-urgent);
+}
+
 .jv-pill-normal {
   background: color-mix(in srgb, var(--jv-normal) 12%, transparent);
   color: var(--jv-normal);
