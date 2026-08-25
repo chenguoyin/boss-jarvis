@@ -6,64 +6,66 @@
       "displayName": "OA 待办",
       "kind": "common",
       "runner": "node",
-      "fetch": "fetch-todo-with-analysis.cjs",
+      "fetch": "oa-todo/fetch-todo-with-analysis.cjs",
       "actions": { "approve": "approve-todo.cjs" }
     },
     "spm-todo": {
       "displayName": "业务协作待办",
       "kind": "common",
       "runner": "node",
-      "fetch": "fetch-spm-todo.cjs",
+      "fetch": "spm-todo/fetch-spm-todo.cjs",
       "actions": { "approve": "approve-todo.cjs" }
     },
     "hongyi-today-metrics": {
       "displayName": "虹翼今日专项",
       "kind": "common",
       "runner": "node",
-      "fetch": "fetch-today-metrics.cjs"
+      "fetch": "hongyi-today-metrics/fetch-today-metrics.cjs"
     },
     "hongyi-business-overview": {
       "displayName": "虹翼经营总览",
       "kind": "common",
       "runner": "node",
-      "fetch": "fetch-business.cjs"
+      "fetch": "hongyi-business-overview/fetch-business.cjs"
     },
     "reminder-center": {
       "displayName": "提醒中心",
       "kind": "common",
       "runner": "node",
-      "fetch": "aggregate-reminders.cjs"
+      "fetch": "reminder-center/aggregate-reminders.cjs"
     },
     "daily-briefing": {
       "displayName": "每日晨报",
       "kind": "common",
       "runner": "node",
-      "fetch": "run-briefing.cjs",
+      "fetch": "daily-briefing/run-briefing.cjs",
       "actions": { "schedule": "manage-schedule.cjs" }
     },
     "skill-manager": {
       "displayName": "Skill 管理",
       "kind": "common",
       "runner": "node",
-      "fetch": "manage-skills.cjs"
+      "fetch": "skill-manager/manage-skills.cjs",
+      "fetchArgs": ["list"]
     },
     "weekly-summary": {
       "displayName": "每周总结",
       "kind": "common",
       "runner": "node",
-      "fetch": "generate-weekly-summary.cjs"
+      "fetch": "weekly-summary/generate-weekly-summary.cjs"
     },
     "boss-cockpit": {
       "displayName": "老板驾驶舱",
       "kind": "common",
       "runner": "node",
-      "fetch": "build-cockpit.cjs"
+      "fetch": "boss-cockpit/build-cockpit.cjs",
+      "fetchArgs": ["--run-reminders"]
     },
     "audit-log": {
       "displayName": "审计日志",
       "kind": "common",
       "runner": "node",
-      "fetch": "record-audit.cjs"
+      "fetch": null
     },
     "ai-chat-dispatcher": {
       "displayName": "AI 对话调度",
@@ -76,7 +78,7 @@
       "kind": "platform",
       "macos": {
         "runner": "node",
-        "fetch": "fetch-unread-mail.cjs",
+        "fetch": "company-mail/fetch-unread-mail.cjs",
         "actions": {
           "mark-read": "mark-mail-read.cjs",
           "generate-reply": "generate-reply-draft.cjs",
@@ -97,7 +99,7 @@
       "kind": "platform",
       "macos": {
         "runner": "swift",
-        "fetch": "fetch-today.swift"
+        "fetch": "native-calendar/fetch-today.swift"
       },
       "windows": {
         "runner": "powershell",

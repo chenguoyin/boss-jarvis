@@ -29,6 +29,17 @@ macOS 与 Windows 共用同一套前端、Rust 核心与设计系统；平台差
 - 统一契约解析层 + Rust Skill 执行/命令桥 + 数据目录适配（macOS `~/.boss-jarvis/data/`，Windows `%USERPROFILE%\.boss-jarvis\data\`）
 - 双端喂同一份契约 JSON，渲染一致
 
+落地记录：
+- `src-tauri/src/paths.rs`：数据/日志/凭证路径抽象，macOS 与 Windows 只差这一个文件。
+- `src-tauri/src/manifest.rs`：内嵌 `skills/manifest.json`，解析 common/platform 与 fetchArgs；
+  platform Skill 在当前平台 pending 时返回明确提示，不静默跳过。
+- `src-tauri/src/skill_runtime.rs`：串行取数、150 秒超时（TERM 后 3 秒 KILL）、
+  stdout JSON 契约校验、ok=false 落盘并报错、fetch.log 与审计失败留痕。
+- `src/lib/skillBridge.ts` + `src/hooks/useSkillData.ts`：前端按分区映射 Skill，
+  顶栏刷新触发取数，失败横幅提示；本地 JSON 读取失败一律显示「未获取」。
+- 端到端验证：`cargo test --test skill_runtime -- --ignored` 用真实 skill-manager
+  取数、落盘并校验契约（依赖本机 `~/.codex/skills`，CI 中跳过）。
+
 ### Phase 3：12 视图逐一迁移
 - 先数据展示、后写操作；每个视图 macOS 比对通过才完成
 
@@ -54,4 +65,3 @@ macOS 与 Windows 共用同一套前端、Rust 核心与设计系统；平台差
 
 ## 待定决策
 - 确认中心是否显式加入左侧导航（当前 SwiftUI 从驾驶舱入口进入）。
-

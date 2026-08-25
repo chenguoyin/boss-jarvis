@@ -16,6 +16,9 @@ interface Props {
   onThemeChange: (theme: Theme) => void;
   onOpenSettings: () => void;
   onRefresh: () => void;
+  isReloading: boolean;
+  activity: string | null;
+  failures: { skill: string; error: string }[];
 }
 
 export default function TopBar({
@@ -24,10 +27,18 @@ export default function TopBar({
   onThemeChange,
   onOpenSettings,
   onRefresh,
+  isReloading,
+  activity,
+  failures,
 }: Props) {
   const section = sectionById(sectionId);
   const SectionIcon = section?.icon;
   const showsCustomize = sectionId === "dashboard";
+  const refreshTitle = isReloading
+    ? (activity ?? "正在获取，请稍候...")
+    : failures.length > 0
+      ? `部分数据未获取：${failures.map((f) => f.error).join("；")}`
+      : "调用 Skill 获取真实数据";
 
   return (
     <header className="jv-topbar">
@@ -74,11 +85,16 @@ export default function TopBar({
         <button
           type="button"
           className="jv-icon-plain"
-          title="刷新"
+          title={refreshTitle}
           aria-label="刷新"
           onClick={onRefresh}
+          disabled={isReloading}
         >
-          <RefreshCw size={15} strokeWidth={2} />
+          <RefreshCw
+            size={15}
+            strokeWidth={2}
+            className={isReloading ? "jv-refresh-spin" : undefined}
+          />
         </button>
 
         <ThemePicker theme={theme} onChange={onThemeChange} />

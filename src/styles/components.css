@@ -263,6 +263,21 @@
   background: color-mix(in srgb, var(--jv-text) 8%, transparent);
 }
 
+.jv-icon-plain:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.jv-refresh-spin {
+  animation: jv-spin 1s linear infinite;
+}
+
+@keyframes jv-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* ---------- 主题选择器 ---------- */
 .jv-theme-picker {
   display: flex;
@@ -298,4 +313,39 @@
   justify-content: center;
   gap: 12px;
   color: var(--jv-faint);
+}
+
+.jv-failure-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 14px;
+  border-radius: var(--jv-radius-card);
+  background: var(--jv-card);
+  border: 1px solid var(--jv-line);
+}
+
+.jv-failure-text {
+  color: var(--jv-muted);
+}
+
+.jv-skill-status-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 280px;
+}
+
+.jv-skill-status-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.jv-skill-status-name {
+  color: var(--jv-muted);
+}
+
+.jv-skill-status-value {
+  color: var(--jv-text);
 }

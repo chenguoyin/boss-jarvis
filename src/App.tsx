@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import NavigationRail from "./components/NavigationRail";
 import TopBar from "./components/TopBar";
 import PlaceholderView from "./components/PlaceholderView";
+import SkillDataView from "./components/SkillDataView";
 import { SquareDashed } from "lucide-react";
 import { sectionById } from "./lib/sections";
+import { useSkillData } from "./hooks/useSkillData";
 import {
   applyFontSizes,
   applyTheme,
@@ -18,6 +20,9 @@ import {
 export default function App() {
   const [sectionId, setSectionId] = useState("dashboard");
   const [theme, setThemeState] = useState<Theme>(getTheme);
+  const section = sectionById(sectionId);
+  const sectionSkills = useMemo(() => section?.skills ?? [], [section]);
+  const { envelopes, failures, isReloading, activity, refresh } = useSkillData(sectionSkills);
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-color-scheme: dark)");
@@ -35,8 +40,6 @@ export default function App() {
     setThemeState(next);
   }, []);
 
-  const section = sectionById(sectionId);
-
   return (
     <div className="jv-shell">
       <NavigationRail
@@ -52,14 +55,23 @@ export default function App() {
           theme={theme}
           onThemeChange={handleThemeChange}
           onOpenSettings={() => setSectionId("settings")}
-          onRefresh={() => undefined}
+          onRefresh={() => {
+            void refresh(sectionSkills);
+          }}
+          isReloading={isReloading}
+          activity={activity}
+          failures={failures}
         />
         <main className="jv-content">
           {section ? (
-            <PlaceholderView section={section} />
+            <SkillDataView
+              section={section}
+              envelopes={envelopes}
+              failures={failures}
+            />
           ) : (
             <PlaceholderView
-              section={{ id: "unknown", title: "未知", icon: SquareDashed }}
+              section={{ id: "unknown", title: "未知", icon: SquareDashed, skills: [] }}
             />
           )}
         </main>
