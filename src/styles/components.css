@@ -544,6 +544,118 @@
   margin-top: 14px;
 }
 
+/* ---------- 每周总结 ---------- */
+.jv-weekly-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.jv-weekly-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.jv-weekly-select {
+  width: 130px;
+  padding: 5px 8px;
+  border: 1px solid var(--jv-line);
+  border-radius: var(--jv-radius-theme-btn);
+  background: var(--jv-card);
+  color: var(--jv-text);
+  font-family: inherit;
+}
+
+.jv-weekly-card-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--jv-text);
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.jv-weekly-card-title svg {
+  color: var(--jv-blue);
+}
+
+.jv-weekly-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.jv-weekly-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border-radius: var(--jv-radius-kpi);
+  background: color-mix(in srgb, var(--jv-blue) 8%, transparent);
+}
+
+.jv-weekly-kpi .jv-caption {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.jv-weekly-kpi .jv-caption svg {
+  color: var(--jv-blue);
+}
+
+.jv-weekly-kpi .jv-control {
+  color: var(--jv-text);
+}
+
+.jv-weekly-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.jv-weekly-tag {
+  padding: 4px 8px;
+  border-radius: var(--jv-radius-tag);
+  background: color-mix(in srgb, var(--jv-blue) 8%, transparent);
+  color: var(--jv-muted);
+}
+
+.jv-weekly-lines {
+  display: flex;
+  flex-direction: column;
+}
+
+.jv-weekly-line {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr);
+  column-gap: 8px;
+  align-items: first baseline;
+  padding: 3px 0;
+}
+
+.jv-weekly-dot {
+  color: var(--jv-blue);
+  fill: currentColor;
+  justify-self: center;
+  margin-top: 5px;
+}
+
+.jv-weekly-event {
+  display: grid;
+  grid-template-columns: 84px 44px minmax(0, 1fr);
+  column-gap: 8px;
+  align-items: baseline;
+  padding: 3px 0;
+}
+
+.jv-weekly-event-date {
+  color: var(--jv-faint);
+}
+
 .jv-pill-normal {
   background: color-mix(in srgb, var(--jv-normal) 12%, transparent);
   color: var(--jv-normal);

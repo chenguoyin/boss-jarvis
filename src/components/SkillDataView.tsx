@@ -8,12 +8,20 @@ import NativeCalendarView from "./NativeCalendarView";
 import { parseNativeCalendar } from "@/lib/nativeCalendar";
 import BriefingView from "./BriefingView";
 import { parseDailyBriefing } from "@/lib/dailyBriefing";
+import WeeklySummaryView from "./WeeklySummaryView";
+import { parseWeeklySummary } from "@/lib/weeklySummary";
 
 interface Props {
   section: AppSection;
   envelopes: Record<string, import("@/lib/contract").SkillEnvelope | null>;
   failures: SkillFailure[];
   briefingEnvelope: import("@/lib/contract").SkillEnvelope | null;
+  weekly: {
+    raw: unknown;
+    dates: string[];
+    selectedDate: string;
+    onSelectDate: (date: string) => void;
+  };
   isRunning: boolean;
   onRun: () => void;
 }
@@ -30,6 +38,7 @@ export default function SkillDataView({
   envelopes,
   failures,
   briefingEnvelope,
+  weekly,
   isRunning,
   onRun,
 }: Props) {
@@ -43,6 +52,7 @@ export default function SkillDataView({
     ? parseNativeCalendar(envelopes["native-calendar"] as import("@/lib/contract").SkillEnvelope)
     : null;
   const briefing = briefingEnvelope ? parseDailyBriefing(briefingEnvelope) : null;
+  const weeklySummary = parseWeeklySummary(weekly.raw);
 
   return (
     <div className="jv-placeholder">
@@ -61,6 +71,13 @@ export default function SkillDataView({
         <NativeCalendarView result={nativeCalendar} />
       ) : section.id === "briefing" ? (
         <BriefingView briefing={briefing} isRunning={isRunning} onRun={onRun} />
+      ) : section.id === "weekly" ? (
+        <WeeklySummaryView
+          summary={weeklySummary}
+          dates={weekly.dates}
+          selectedDate={weekly.selectedDate}
+          onSelectDate={weekly.onSelectDate}
+        />
       ) : (
         <>
           <SquareDashed size={40} strokeWidth={1.5} />

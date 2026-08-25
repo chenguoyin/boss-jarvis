@@ -21,3 +21,17 @@ fn read_daily_briefing_report_returns_latest_cockpit() {
     let parsed: serde_json::Value = serde_json::from_str(&text).expect("晨报产物应为 JSON");
     assert!(parsed["bossView"].is_object(), "晨报产物应包含 bossView 契约");
 }
+
+#[test]
+#[ignore = "依赖本机 weekly-summary 存档，按需手动验证"]
+fn weekly_summary_archive_commands_work() {
+    let dates = boss_jarvis_lib::weekly_summary_dates_for_integration();
+    let Some(latest) = dates.first() else {
+        return;
+    };
+    let Some(text) = boss_jarvis_lib::read_weekly_summary_archive_for_integration(latest.clone()) else {
+        panic!("最新周报存档应可读取: {latest}");
+    };
+    let parsed: serde_json::Value = serde_json::from_str(&text).expect("周报存档应为 JSON");
+    assert_eq!(parsed["reportDate"], *latest);
+}

@@ -25,3 +25,17 @@ export async function readDailyBriefingReport(): Promise<SkillEnvelope | null> {
   const text = await invoke<string | null>("read_daily_briefing_report");
   return text === null ? null : parseSkillJson(text);
 }
+
+export async function listWeeklySummaryDates(): Promise<string[]> {
+  return invoke<string[]>("weekly_summary_dates");
+}
+
+export async function readWeeklySummaryArchive(date: string): Promise<unknown> {
+  const text = await invoke<string | null>("read_weekly_summary_archive", { date });
+  if (text === null) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}

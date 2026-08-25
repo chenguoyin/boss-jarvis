@@ -6,7 +6,12 @@ import SkillDataView from "./components/SkillDataView";
 import { SquareDashed } from "lucide-react";
 import { sectionById } from "./lib/sections";
 import { useSkillData } from "./hooks/useSkillData";
-import { readDailyBriefingReport } from "./lib/skillBridge";
+import {
+  listWeeklySummaryDates,
+  readDailyBriefingReport,
+  readSkillData,
+  readWeeklySummaryArchive,
+} from "./lib/skillBridge";
 import type { SkillEnvelope } from "./lib/contract";
 import {
   applyFontSizes,
@@ -26,12 +31,32 @@ export default function App() {
   const sectionSkills = useMemo(() => section?.skills ?? [], [section]);
   const { envelopes, failures, isReloading, activity, refresh } = useSkillData(sectionSkills);
   const [briefingEnvelope, setBriefingEnvelope] = useState<SkillEnvelope | null>(null);
+  const [weeklyRaw, setWeeklyRaw] = useState<unknown>(null);
+  const [weeklyDates, setWeeklyDates] = useState<string[]>([]);
+  const [weeklyDate, setWeeklyDate] = useState("");
   const [reloadCount, setReloadCount] = useState(0);
 
   useEffect(() => {
     if (sectionId !== "briefing") return;
     void readDailyBriefingReport().then(setBriefingEnvelope);
   }, [sectionId, reloadCount]);
+
+  useEffect(() => {
+    if (sectionId !== "weekly") return;
+    void listWeeklySummaryDates().then((dates) => {
+      setWeeklyDates(dates);
+      setWeeklyDate((current) => (current !== "" && dates.includes(current) ? current : (dates[0] ?? "")));
+    });
+  }, [sectionId, reloadCount]);
+
+  useEffect(() => {
+    if (sectionId !== "weekly" || weeklyDate === "") return;
+    if (weeklyDates[0] === weeklyDate) {
+      void readSkillData("weekly-summary").then(setWeeklyRaw);
+      return;
+    }
+    void readWeeklySummaryArchive(weeklyDate).then(setWeeklyRaw);
+  }, [sectionId, weeklyDate, weeklyDates, reloadCount]);
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-color-scheme: dark)");
@@ -83,6 +108,12 @@ export default function App() {
               envelopes={envelopes}
               failures={failures}
               briefingEnvelope={briefingEnvelope}
+              weekly={{
+                raw: weeklyRaw,
+                dates: weeklyDates,
+                selectedDate: weeklyDate,
+                onSelectDate: setWeeklyDate,
+              }}
               isRunning={isReloading}
               onRun={() => {
                 void handleRefresh();

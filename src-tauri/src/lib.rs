@@ -27,6 +27,14 @@ pub fn read_daily_briefing_report_for_integration() -> Option<String> {
     read_daily_briefing_report()
 }
 
+pub fn weekly_summary_dates_for_integration() -> Vec<String> {
+    weekly_summary_dates()
+}
+
+pub fn read_weekly_summary_archive_for_integration(date: String) -> Option<String> {
+    read_weekly_summary_archive(date)
+}
+
 #[tauri::command]
 fn data_dir() -> String {
     skill_runtime::data_dir().to_string_lossy().into_owned()
@@ -55,6 +63,37 @@ fn read_skill_data(skill: String) -> Option<String> {
     std::fs::read_to_string(path).ok()
 }
 
+/// 历史周报存档：~/.boss-jarvis/data/weekly-summary/yyyy-MM-dd.json，倒序。
+#[tauri::command]
+fn weekly_summary_dates() -> Vec<String> {
+    let dir = skill_runtime::data_dir().join("weekly-summary");
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return Vec::new();
+    };
+    let mut dates: Vec<String> = entries
+        .filter_map(|entry| entry.ok())
+        .filter_map(|entry| {
+            let path = entry.path();
+            if path.extension().and_then(|ext| ext.to_str()) != Some("json") {
+                return None;
+            }
+            path.file_stem().and_then(|stem| stem.to_str().map(String::from))
+        })
+        .filter(|date| date.len() == 10 && date.as_bytes().get(4) == Some(&b'-'))
+        .collect();
+    dates.sort_by(|a, b| b.cmp(a));
+    dates
+}
+
+#[tauri::command]
+fn read_weekly_summary_archive(date: String) -> Option<String> {
+    if date.len() != 10 || !date.bytes().all(|b| b.is_ascii_digit() || b == b'-') {
+        return None;
+    }
+    let path = skill_runtime::data_dir().join("weekly-summary").join(format!("{date}.json"));
+    std::fs::read_to_string(path).ok()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -63,7 +102,9 @@ pub fn run() {
             fetch_skills,
             fetch_skill,
             read_skill_data,
-            read_daily_briefing_report
+            read_daily_briefing_report,
+            weekly_summary_dates,
+            read_weekly_summary_archive
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
