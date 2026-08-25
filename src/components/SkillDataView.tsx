@@ -15,6 +15,8 @@ import { buildHongyiSnapshot } from "@/lib/hongyiBusiness";
 import OATodoView from "./OATodoView";
 import ExpenseTodoView from "./ExpenseTodoView";
 import { parseOATodo } from "@/lib/oaTodo";
+import MailView from "./MailView";
+import { parseCompanyMail } from "@/lib/mail";
 
 interface Props {
   section: AppSection;
@@ -63,6 +65,7 @@ export default function SkillDataView({
     envelopes["hongyi-business-overview"] as import("@/lib/contract").SkillEnvelope | null ?? null,
   );
   const oaTodo = parseOATodo(envelopes["oa-todo"] as import("@/lib/contract").SkillEnvelope | null ?? null);
+  const companyMail = parseCompanyMail(envelopes["company-mail"] as import("@/lib/contract").SkillEnvelope | null ?? null);
 
   return (
     <div className="jv-placeholder">
@@ -94,6 +97,8 @@ export default function SkillDataView({
         <OATodoView result={oaTodo} />
       ) : section.id === "funds" ? (
         <ExpenseTodoView result={oaTodo} />
+      ) : section.id === "mail" ? (
+        <MailView result={companyMail} />
       ) : (
         <>
           <SquareDashed size={40} strokeWidth={1.5} />

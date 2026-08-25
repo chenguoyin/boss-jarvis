@@ -860,6 +860,143 @@
   color: var(--jv-normal);
 }
 
+/* ---------- 邮件 ---------- */
+.jv-mail-hint {
+  padding: 5px 10px;
+  border-radius: var(--jv-radius-pill);
+  background: color-mix(in srgb, var(--jv-blue) 12%, transparent);
+  color: var(--jv-blue);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.jv-mail-empty {
+  text-align: center;
+  padding: 40px 0;
+}
+
+.jv-mail-list {
+  display: flex;
+  flex-direction: column;
+  margin-top: 16px;
+}
+
+.jv-mail-row {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) 210px 64px 130px 96px;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 12px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--jv-line) 60%, transparent);
+  text-align: left;
+}
+
+.jv-mail-row-head {
+  padding: 8px 0;
+  color: var(--jv-muted);
+  font-weight: 600;
+}
+
+.jv-mail-row-body:hover {
+  background: color-mix(in srgb, var(--jv-text) 4%, transparent);
+}
+
+.jv-mail-row:last-child {
+  border-bottom: none;
+}
+
+.jv-mail-index {
+  color: var(--jv-faint);
+}
+
+.jv-mail-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.jv-mail-title-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.jv-mail-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--jv-attention);
+  flex-shrink: 0;
+}
+
+.jv-mail-subject {
+  color: var(--jv-text);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jv-mail-row-body:hover .jv-mail-subject {
+  text-decoration: underline;
+}
+
+.jv-mail-basis,
+.jv-mail-sender,
+.jv-mail-time {
+  color: var(--jv-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jv-mail-level-badge {
+  padding: 3px 8px;
+  border-radius: var(--jv-radius-pill);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.jv-mail-sheet {
+  width: 640px;
+  max-height: 540px;
+}
+
+.jv-mail-sheet-heading {
+  min-width: 0;
+  flex: 1;
+}
+
+.jv-mail-sheet-subject {
+  color: var(--jv-text);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.jv-mail-body-section {
+  overflow: hidden;
+}
+
+.jv-mail-html {
+  height: 360px;
+  border-radius: var(--jv-radius-section);
+  overflow: hidden;
+  background: var(--jv-fixed-white);
+}
+
+.jv-mail-html iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+  background: var(--jv-fixed-white);
+}
+
 .jv-calendar-sections {
   display: flex;
   flex-direction: column;
