@@ -1,11 +1,14 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import NavigationRail from "./components/NavigationRail";
 import TopBar from "./components/TopBar";
 import PlaceholderView from "./components/PlaceholderView";
 import SkillDataView from "./components/SkillDataView";
 import ConfirmationCenterView from "./components/ConfirmationCenterView";
 import SettingsView from "./components/SettingsView";
-import { SquareDashed } from "lucide-react";
+import AssistantChatPanel from "./components/AssistantChatPanel";
+import AboutDialog from "./components/AboutDialog";
+import HomeModuleCustomizer from "./components/HomeModuleCustomizer";
+import { RefreshCw, SquareDashed } from "lucide-react";
 import { sectionById } from "./lib/sections";
 import { useSkillData } from "./hooks/useSkillData";
 import {
@@ -19,7 +22,10 @@ import {
   readSkillData,
   readWeeklySummaryArchive,
   toggleSkill,
+  toggleMaximize,
 } from "./lib/skillBridge";
+import { parseOATodo } from "./lib/oaTodo";
+import { parseCompanyMail } from "./lib/mail";
 import {
   createSkillToggleAction,
   pendingOnly,
@@ -41,6 +47,13 @@ import {
   setBodyFontSize as persistBodyFontSize,
   setTheme as persistTheme,
   setTitleFontSize as persistTitleFontSize,
+  getAutoRefreshEnabled as loadAutoRefreshEnabled,
+  getAutoRefreshInterval as loadAutoRefreshInterval,
+  setAutoRefreshEnabled as persistAutoRefreshEnabled,
+  setAutoRefreshInterval as persistAutoRefreshInterval,
+  getHomeModuleConfig,
+  setHomeModuleConfig,
+  type HomeModuleConfig,
   type Theme,
 } from "./lib/config";
 
@@ -49,7 +62,7 @@ export default function App() {
   const [theme, setThemeState] = useState<Theme>(loadTheme);
   const section = sectionById(sectionId);
   const sectionSkills = useMemo(() => section?.skills ?? [], [section]);
-  const { envelopes, failures, isReloading, activity, refresh } = useSkillData(sectionSkills);
+  const { envelopes, failures, isReloading, activity, refresh, refreshAll } = useSkillData(sectionSkills);
   const [briefingEnvelope, setBriefingEnvelope] = useState<SkillEnvelope | null>(null);
   const [weeklyRaw, setWeeklyRaw] = useState<unknown>(null);
   const [weeklyDates, setWeeklyDates] = useState<string[]>([]);
@@ -69,6 +82,15 @@ export default function App() {
   const [markingReadIds, setMarkingReadIds] = useState<Set<number>>(new Set());
   const [replyingIds, setReplyingIds] = useState<Set<number>>(new Set());
   const [hiddenMailIds, setHiddenMailIds] = useState<Set<number>>(new Set());
+  const [autoRefreshEnabled, setAutoRefreshEnabledState] = useState(loadAutoRefreshEnabled);
+  const [autoRefreshInterval, setAutoRefreshIntervalState] = useState(loadAutoRefreshInterval);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<number | null>(null);
+  const [nextAutoRefreshAt, setNextAutoRefreshAt] = useState<number | null>(null);
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  const [assistantOpen, setAssistantOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
+  const [customizerOpen, setCustomizerOpen] = useState(false);
+  const [homeModuleConfig, setHomeModuleConfigState] = useState<HomeModuleConfig>(getHomeModuleConfig);
 
   useEffect(() => {
     if (sectionId !== "briefing") return;
@@ -120,9 +142,66 @@ export default function App() {
   }, []);
 
   const handleRefresh = useCallback(async () => {
-    await refresh(sectionSkills);
+    if (isReloading) return;
+    await refreshAll();
     setReloadCount((count) => count + 1);
-  }, [refresh, sectionSkills]);
+    setLastRefreshedAt(Date.now());
+  }, [refreshAll, isReloading]);
+
+  const handleRefreshRef = useRef(handleRefresh);
+  useEffect(() => {
+    handleRefreshRef.current = handleRefresh;
+  }, [handleRefresh]);
+
+  // 顶栏/助手/全局 ⌘K，Esc 关闭弹层；与 legacy 快捷键一致。
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setAssistantOpen((open) => !open);
+      }
+      if (event.key === "Escape") {
+        setAssistantOpen(false);
+        setAboutOpen(false);
+        setCustomizerOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  // 自动刷新：每秒重算倒计时文案；到点全量执行 Skill。
+  useEffect(() => {
+    const timer = window.setInterval(() => setNowTick(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!autoRefreshEnabled) {
+      setNextAutoRefreshAt(null);
+      return;
+    }
+    const due = lastRefreshedAt === null ? Date.now() : lastRefreshedAt + autoRefreshInterval * 60_000;
+    setNextAutoRefreshAt(due);
+    const delay = Math.max(due - Date.now(), 0);
+    const timer = window.setTimeout(() => {
+      void handleRefreshRef.current();
+    }, delay);
+    return () => window.clearTimeout(timer);
+  }, [autoRefreshEnabled, autoRefreshInterval, lastRefreshedAt, handleRefreshRef]);
+
+  const updateHomeModuleConfig = useCallback((next: HomeModuleConfig) => {
+    setHomeModuleConfig(next);
+    setHomeModuleConfigState(next);
+  }, []);
+
+  const oaTodoResult = parseOATodo(envelopes["oa-todo"] ?? null);
+  const mailResult = parseCompanyMail(envelopes["company-mail"] ?? null);
+  const badgeFor = useCallback((id: string) => {
+    if (id === "oa-todo") return oaTodoResult?.total;
+    if (id === "mail") return mailResult?.needsReplyCount;
+    return undefined;
+  }, [oaTodoResult, mailResult]);
 
   const applyActionOutcome = useCallback((id: string, ok: boolean, summary: string) => {
     setActions((current) =>
@@ -138,6 +217,18 @@ export default function App() {
     await refresh(["skill-manager"]);
     setReloadCount((count) => count + 1);
   }, [refresh]);
+
+  // 分区头部刷新：只重取本分区 Skill；审计/确认中心仅回读本地数据。
+  const handleSectionRefresh = useCallback(async () => {
+    if (sectionId === "audit" || sectionId === "confirmation") {
+      setReloadCount((count) => count + 1);
+      return;
+    }
+    if (isReloading || sectionSkills.length === 0) return;
+    await refresh(sectionSkills);
+    setReloadCount((count) => count + 1);
+    setLastRefreshedAt(Date.now());
+  }, [sectionId, sectionSkills, refresh, isReloading]);
 
   const executeActions = useCallback(async (ids: string[]) => {
     const pending = pendingOnly(actions).filter((action) => ids.includes(action.id));
@@ -259,6 +350,8 @@ export default function App() {
       <NavigationRail
         selectedId={sectionId}
         onSelect={setSectionId}
+        badgeFor={badgeFor}
+        onShowAbout={() => setAboutOpen(true)}
       />
 
       <div className="jv-rail-divider" />
@@ -275,18 +368,41 @@ export default function App() {
           isReloading={isReloading}
           activity={activity}
           failures={failures}
+          lastRefreshedAt={lastRefreshedAt}
+          nextAutoRefreshAt={nextAutoRefreshAt}
+          nowTick={nowTick}
+          onOpenAssistant={() => setAssistantOpen(true)}
+          onToggleMaximize={() => {
+            void toggleMaximize();
+          }}
+          onOpenCustomizer={() => setCustomizerOpen(true)}
         />
         <main className="jv-content">
           {sectionId === "confirmation" ? (
-            <ConfirmationCenterView
-              actions={actions}
-              executing={executing}
-              progressText={progressText}
-              onConfirm={handleConfirm}
-              onSkip={handleSkip}
-              onConfirmBatch={handleConfirmBatch}
-              onSkipBatch={handleSkipBatch}
-            />
+            <>
+              <div className="jv-section-header">
+                <div className="jv-title">确认中心</div>
+                <button
+                  type="button"
+                  className="jv-icon-plain"
+                  title="重新加载 Skill 数据"
+                  aria-label="刷新确认中心"
+                  onClick={() => setReloadCount((count) => count + 1)}
+                  disabled={isReloading}
+                >
+                  <RefreshCw size={15} strokeWidth={2} className={isReloading ? "jv-refresh-spin" : undefined} />
+                </button>
+              </div>
+              <ConfirmationCenterView
+                actions={actions}
+                executing={executing}
+                progressText={progressText}
+                onConfirm={handleConfirm}
+                onSkip={handleSkip}
+                onConfirmBatch={handleConfirmBatch}
+                onSkipBatch={handleSkipBatch}
+              />
+            </>
           ) : sectionId === "settings" ? (
             <SettingsView
               theme={theme}
@@ -306,6 +422,15 @@ export default function App() {
                 setBodyFontSize(DEFAULT_BODY_FONT_SIZE);
                 persistTitleFontSize(DEFAULT_TITLE_FONT_SIZE);
                 persistBodyFontSize(DEFAULT_BODY_FONT_SIZE);
+              }}
+              autoRefreshEnabled={autoRefreshEnabled}
+              autoRefreshInterval={autoRefreshInterval}
+              onAutoRefreshChange={(enabled, interval) => {
+                persistAutoRefreshEnabled(enabled);
+                persistAutoRefreshInterval(interval);
+                setAutoRefreshEnabledState(enabled);
+                setAutoRefreshIntervalState(interval);
+                setLastRefreshedAt((current) => (current === null ? Date.now() : current));
               }}
             />
           ) : section ? (
@@ -330,6 +455,7 @@ export default function App() {
               onRun={() => {
                 void handleRefresh();
               }}
+              onSectionRefresh={handleSectionRefresh}
               onNavigate={setSectionId}
               oa={{
                 approvalStatus: oaApprovalStatus,
@@ -345,6 +471,7 @@ export default function App() {
                 onOpenReply: handleOpenMailReply,
               }}
               skills={{ onToggle: handleToggleSkill }}
+              homeModules={homeModuleConfig}
             />
           ) : (
             <PlaceholderView
@@ -353,6 +480,15 @@ export default function App() {
           )}
         </main>
       </div>
+      {assistantOpen && <AssistantChatPanel onClose={() => setAssistantOpen(false)} />}
+      {aboutOpen && <AboutDialog onClose={() => setAboutOpen(false)} />}
+      {customizerOpen && (
+        <HomeModuleCustomizer
+          config={homeModuleConfig}
+          onChange={updateHomeModuleConfig}
+          onClose={() => setCustomizerOpen(false)}
+        />
+      )}
     </div>
   );
 }

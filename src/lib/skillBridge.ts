@@ -11,9 +11,17 @@ export async function fetchDataDir(): Promise<string> {
   return invoke<string>("data_dir");
 }
 
+export function toggleMaximize(): Promise<void> {
+  return invoke<void>("toggle_maximize");
+}
+
 export async function fetchSkills(skills: string[]): Promise<FetchOutcome[]> {
   if (skills.length === 0) return [];
   return invoke<FetchOutcome[]>("fetch_skills", { skills });
+}
+
+export async function fetchAllSkills(): Promise<FetchOutcome[]> {
+  return invoke<FetchOutcome[]>("fetch_all_skills");
 }
 
 export async function readSkillData(skill: string): Promise<SkillEnvelope | null> {

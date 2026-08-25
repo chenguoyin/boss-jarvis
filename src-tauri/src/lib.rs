@@ -45,6 +45,16 @@ fn data_dir() -> String {
     skill_runtime::data_dir().to_string_lossy().into_owned()
 }
 
+/// 顶栏“放大/还原”：等价 legacy 的 NSApp.keyWindow.zoom(nil)。
+#[tauri::command]
+fn toggle_maximize(window: tauri::WebviewWindow) {
+    if window.is_maximized().unwrap_or(false) {
+        let _ = window.unmaximize();
+    } else {
+        let _ = window.maximize();
+    }
+}
+
 #[tauri::command]
 fn fetch_skill(skill: String) -> skill_runtime::FetchOutcome {
     let manifest = manifest::load();
@@ -58,6 +68,17 @@ fn fetch_skills(skills: Vec<String>) -> Vec<skill_runtime::FetchOutcome> {
         .fetch_tasks()
         .into_iter()
         .filter(|task| skills.contains(&task.id))
+        .map(|task| skill_runtime::fetch_skill(&manifest, &task.id))
+        .collect()
+}
+
+/// 手动/自动刷新使用：执行 manifest 中全部取数任务，壳层按当前分区回读。
+#[tauri::command]
+fn fetch_all_skills() -> Vec<skill_runtime::FetchOutcome> {
+    let manifest = manifest::load();
+    manifest
+        .fetch_tasks()
+        .into_iter()
         .map(|task| skill_runtime::fetch_skill(&manifest, &task.id))
         .collect()
 }
@@ -177,7 +198,9 @@ pub fn run() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             data_dir,
+            toggle_maximize,
             fetch_skills,
+            fetch_all_skills,
             fetch_skill,
             read_skill_data,
             read_daily_briefing_report,

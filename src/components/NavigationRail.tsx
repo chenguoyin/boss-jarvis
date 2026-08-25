@@ -50,12 +50,14 @@ interface Props {
   selectedId: string;
   onSelect: (id: string) => void;
   badgeFor?: (id: string) => number | undefined;
+  onShowAbout: () => void;
 }
 
 export default function NavigationRail({
   selectedId,
   onSelect,
   badgeFor,
+  onShowAbout,
 }: Props) {
   return (
     <nav className="jv-nav" aria-label="主导航">
@@ -81,6 +83,7 @@ export default function NavigationRail({
         className="jv-nav-brand"
         title="关于 Boss Jarvis"
         aria-label="关于 Boss Jarvis"
+        onClick={onShowAbout}
       >
         <img
           className="jv-nav-brand-img"

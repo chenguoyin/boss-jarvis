@@ -8,11 +8,13 @@ import {
   Sparkles,
 } from "lucide-react";
 import type { DashboardSnapshot } from "@/lib/dashboard";
+import type { HomeModuleConfig, HomeModuleId } from "@/lib/config";
 
 interface Props {
   snapshot: DashboardSnapshot;
   onNavigate: (sectionId: string) => void;
   onOpenMailReply: (message: DashboardSnapshot["mailItems"][number]) => void;
+  homeModules: HomeModuleConfig;
 }
 
 function Panel({
@@ -63,28 +65,13 @@ function PositiveState({ title, detail }: { title: string; detail: string }) {
   );
 }
 
-export default function DashboardView({ snapshot, onNavigate, onOpenMailReply }: Props) {
+export default function DashboardView({ snapshot, onNavigate, onOpenMailReply, homeModules }: Props) {
   const { headline } = snapshot;
-  return (
-    <div className="jv-home">
-      <section className="jv-home-verdict">
-        <div className="jv-home-verdict-top">
-          <span className={"jv-home-status-dot jv-level-" + headline.statusLevel} />
-          <span className="jv-caption jv-muted">{headline.statusText}</span>
-          <span className="jv-home-verdict-time">数据更新于 {headline.updatedAt}</span>
-        </div>
-        <div className="jv-home-headline">{headline.text}</div>
-        <div className="jv-home-chips">
-          {headline.chips.map((chip) => (
-            <span key={chip.label} className={"jv-caption jv-home-chip jv-level-" + chip.level}>
-              <b>{chip.value}</b>
-              {chip.label}
-            </span>
-          ))}
-        </div>
-      </section>
-
-      <div className="jv-home-grid">
+  const hidden = homeModules.hidden;
+  const showModule = (id: HomeModuleId) => !hidden.has(id);
+  const cardModule = (id: Extract<HomeModuleId, "todo" | "summary" | "risk" | "mail">) => {
+    if (id === "todo") {
+      return (
         <Panel
           icon={<Sparkles size={15} strokeWidth={2} />}
           title="今日待办提醒"
@@ -119,7 +106,10 @@ export default function DashboardView({ snapshot, onNavigate, onOpenMailReply }:
             ))
           )}
         </Panel>
-
+      );
+    }
+    if (id === "summary") {
+      return (
         <Panel
           icon={<ListChecks size={15} strokeWidth={2} />}
           title="今日需处理事项"
@@ -151,9 +141,10 @@ export default function DashboardView({ snapshot, onNavigate, onOpenMailReply }:
             <div className="jv-caption jv-faint">低优先级已折叠 {snapshot.hiddenLowPriority} 项</div>
           )}
         </Panel>
-      </div>
-
-      <div className="jv-home-grid">
+      );
+    }
+    if (id === "risk") {
+      return (
         <Panel
           icon={<ShieldAlert size={15} strokeWidth={2} />}
           title="风险提示与建议"
@@ -185,63 +176,97 @@ export default function DashboardView({ snapshot, onNavigate, onOpenMailReply }:
             ))
           )}
         </Panel>
-
-        <Panel
-          icon={<Inbox size={15} strokeWidth={2} />}
-          title="待回复邮件"
-          subtitle="按紧急度与时间排序 · 前 3 封"
-          pill={{
-            value: String(snapshot.mailNeedsReplyCount ?? 0),
-            label: "待回复",
-            level: (snapshot.mailNeedsReplyCount ?? 0) > 0 ? "attention" : "normal",
-          }}
-          footer={"来源：企业邮箱 · 更新 " + headline.updatedAt + " · 回复在邮件客户端打开草稿，由您发送"}
-        >
-          {snapshot.mailItems.length === 0 ? (
-            <PositiveState title="暂无待回复邮件" detail="未读邮件均已判定为阅读掌握类" />
-          ) : (
-            snapshot.mailItems.map((message) => (
-              <div key={message.id} className="jv-home-mail">
-                <div className="jv-home-mail-main">
-                  <div className="jv-title jv-home-mail-subject">{message.subject}</div>
-                  <div className="jv-caption jv-muted">{message.sender === "" ? "未获取" : message.sender} · {message.displayTime}</div>
-                  {message.replyBasis !== "" && <div className="jv-caption jv-faint">{message.replyBasis}</div>}
-                </div>
-                <button
-                  type="button"
-                  className="jv-control jv-home-mail-reply"
-                  title="在邮件客户端打开回复草稿，不代发"
-                  onClick={() => onOpenMailReply(message)}
-                >
-                  回复
-                </button>
-              </div>
-            ))
-          )}
-        </Panel>
-      </div>
-
+      );
+    }
+    return (
       <Panel
-        icon={<BarChart3 size={15} strokeWidth={2} />}
-        title="经营情况速览"
-        subtitle="今日 · 本月 · 年度 · 虹翼口径"
+        icon={<Inbox size={15} strokeWidth={2} />}
+        title="待回复邮件"
+        subtitle="按紧急度与时间排序 · 前 3 封"
         pill={{
-          value: String(snapshot.metricItems.filter((item) => item.isMissing).length),
-          label: "项未获取",
-          level: snapshot.metricItems.some((item) => item.isMissing) ? "attention" : "normal",
+          value: String(snapshot.mailNeedsReplyCount ?? 0),
+          label: "待回复",
+          level: (snapshot.mailNeedsReplyCount ?? 0) > 0 ? "attention" : "normal",
         }}
-        footer={"来源：虹翼系统 · 更新 " + headline.updatedAt + " · 点击进入经营情况页"}
+        footer={"来源：企业邮箱 · 更新 " + headline.updatedAt + " · 回复在邮件客户端打开草稿，由您发送"}
       >
-        <div className="jv-home-metrics">
-          {snapshot.metricItems.map((metric) => (
-            <div key={metric.title} className="jv-home-metric">
-              <div className="jv-caption jv-muted">{metric.title}</div>
-              <div className={"jv-title " + (metric.isMissing ? "jv-faint" : "")}>{metric.value}</div>
-              <div className={"jv-caption " + (metric.isMissing ? "jv-level-attention" : "jv-muted")}>{metric.note}</div>
+        {snapshot.mailItems.length === 0 ? (
+          <PositiveState title="暂无待回复邮件" detail="未读邮件均已判定为阅读掌握类" />
+        ) : (
+          snapshot.mailItems.map((message) => (
+            <div key={message.id} className="jv-home-mail">
+              <div className="jv-home-mail-main">
+                <div className="jv-title jv-home-mail-subject">{message.subject}</div>
+                <div className="jv-caption jv-muted">{message.sender === "" ? "未获取" : message.sender} · {message.displayTime}</div>
+                {message.replyBasis !== "" && <div className="jv-caption jv-faint">{message.replyBasis}</div>}
+              </div>
+              <button
+                type="button"
+                className="jv-control jv-home-mail-reply"
+                title="在邮件客户端打开回复草稿，不代发"
+                onClick={() => onOpenMailReply(message)}
+              >
+                回复
+              </button>
             </div>
-          ))}
-        </div>
+          ))
+        )}
       </Panel>
+    );
+  };
+  const orderedCards = homeModules.order.filter(
+    (id): id is Extract<HomeModuleId, "todo" | "summary" | "risk" | "mail"> =>
+      id === "todo" || id === "summary" || id === "risk" || id === "mail",
+  );
+  const upperCards = orderedCards.slice(0, 2);
+  const lowerCards = orderedCards.slice(2, 4);
+  return (
+    <div className="jv-home">
+      {showModule("verdict") && (
+        <section className="jv-home-verdict">
+          <div className="jv-home-verdict-top">
+            <span className={"jv-home-status-dot jv-level-" + headline.statusLevel} />
+            <span className="jv-caption jv-muted">{headline.statusText}</span>
+            <span className="jv-home-verdict-time">数据更新于 {headline.updatedAt}</span>
+          </div>
+          <div className="jv-home-headline">{headline.text}</div>
+          <div className="jv-home-chips">
+            {headline.chips.map((chip) => (
+              <span key={chip.label} className={"jv-caption jv-home-chip jv-level-" + chip.level}>
+                <b>{chip.value}</b>
+                {chip.label}
+              </span>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {upperCards.length > 0 && <div className="jv-home-grid">{upperCards.map((id) => cardModule(id))}</div>}
+      {lowerCards.length > 0 && <div className="jv-home-grid">{lowerCards.map((id) => cardModule(id))}</div>}
+
+      {showModule("metrics") && (
+        <Panel
+          icon={<BarChart3 size={15} strokeWidth={2} />}
+          title="经营情况速览"
+          subtitle="今日 · 本月 · 年度 · 虹翼口径"
+          pill={{
+            value: String(snapshot.metricItems.filter((item) => item.isMissing).length),
+            label: "项未获取",
+            level: snapshot.metricItems.some((item) => item.isMissing) ? "attention" : "normal",
+          }}
+          footer={"来源：虹翼系统 · 更新 " + headline.updatedAt + " · 点击进入经营情况页"}
+        >
+          <div className="jv-home-metrics">
+            {snapshot.metricItems.map((metric) => (
+              <div key={metric.title} className="jv-home-metric">
+                <div className="jv-caption jv-muted">{metric.title}</div>
+                <div className={"jv-title " + (metric.isMissing ? "jv-faint" : "")}>{metric.value}</div>
+                <div className={"jv-caption " + (metric.isMissing ? "jv-level-attention" : "jv-muted")}>{metric.note}</div>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      )}
     </div>
   );
 }

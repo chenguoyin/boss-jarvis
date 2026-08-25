@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Eye, EyeOff, RotateCcw, Save } from "lucide-react";
 import {
+  AUTO_REFRESH_INTERVAL_OPTIONS,
   DEFAULT_BODY_FONT_SIZE,
   DEFAULT_TITLE_FONT_SIZE,
   type Theme,
@@ -15,6 +16,9 @@ interface Props {
   onTitleFontSizeChange: (value: number) => void;
   onBodyFontSizeChange: (value: number) => void;
   onResetFontSizes: () => void;
+  autoRefreshEnabled: boolean;
+  autoRefreshInterval: number;
+  onAutoRefreshChange: (enabled: boolean, interval: number) => void;
 }
 
 const ENV_FIELDS = [
@@ -76,6 +80,9 @@ export default function SettingsView({
   onTitleFontSizeChange,
   onBodyFontSizeChange,
   onResetFontSizes,
+  autoRefreshEnabled,
+  autoRefreshInterval,
+  onAutoRefreshChange,
 }: Props) {
   const [values, setValues] = useState<Record<string, string>>({});
   const [loaded, setLoaded] = useState(false);
@@ -157,6 +164,47 @@ export default function SettingsView({
           <RotateCcw size={15} strokeWidth={2} />
           恢复默认字号
         </button>
+      </section>
+
+      <section className="jv-settings-section">
+        <div className="jv-title">自动刷新</div>
+        <div className="jv-settings-row">
+          <div className="jv-settings-row-head">
+            <span className="jv-body jv-settings-label">启用自动刷新</span>
+            <button
+              type="button"
+              className={"jv-switch" + (autoRefreshEnabled ? " jv-switch-on" : "")}
+              role="switch"
+              aria-checked={autoRefreshEnabled}
+              title={autoRefreshEnabled ? "关闭自动刷新" : "启用自动刷新"}
+              onClick={() => onAutoRefreshChange(!autoRefreshEnabled, autoRefreshInterval)}
+            >
+              <span className="jv-switch-knob" />
+            </button>
+          </div>
+        </div>
+        <div className="jv-settings-row">
+          <div className="jv-settings-row-head">
+            <span className="jv-body jv-settings-label">刷新间隔</span>
+            <div className="jv-settings-interval">
+              {AUTO_REFRESH_INTERVAL_OPTIONS.map((option) => (
+                <button
+                  type="button"
+                  key={option}
+                  className="jv-caption jv-settings-theme-option"
+                  data-active={autoRefreshInterval === option || undefined}
+                  disabled={!autoRefreshEnabled}
+                  onClick={() => onAutoRefreshChange(autoRefreshEnabled, option)}
+                >
+                  {option} 分钟
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="jv-caption jv-muted jv-settings-note">
+            所有 Skill 按此间隔自动获取真实数据。刷新时顶部状态栏会显示进度，完成后显示最近刷新时间和下次倒计时。
+          </div>
+        </div>
       </section>
 
       <section className="jv-settings-section">

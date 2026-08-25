@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  fetchAllSkills,
   fetchSkills,
   readSkillData,
 } from "@/lib/skillBridge";
@@ -15,6 +16,10 @@ export function useSkillData(sectionSkills: string[]) {
   const [failures, setFailures] = useState<SkillFailure[]>([]);
   const [isReloading, setIsReloading] = useState(false);
   const [activity, setActivity] = useState<string | null>(null);
+  const sectionSkillsRef = useRef(sectionSkills);
+  useEffect(() => {
+    sectionSkillsRef.current = sectionSkills;
+  }, [sectionSkills]);
 
   const loadLocal = useCallback(async (skills: string[]) => {
     const entries = await Promise.all(
@@ -52,5 +57,23 @@ export function useSkillData(sectionSkills: string[]) {
     [sectionSkills, loadLocal],
   );
 
-  return { envelopes, failures, isReloading, activity, refresh, loadLocal };
+  // 顶栏手动刷新与自动刷新一致：全量执行 Skill，再回读当前分区数据。
+  const refreshAll = useCallback(async () => {
+      setIsReloading(true);
+      setFailures([]);
+      setActivity("正在获取，请稍候...");
+      try {
+        const outcomes = await fetchAllSkills();
+        setFailures(outcomes.filter((o) => !o.ok).map(({ skill, error }) => ({ skill, error })));
+        await loadLocal(sectionSkillsRef.current);
+      } catch (error) {
+        setFailures([{ skill: "workbench", error: String(error) }]);
+      } finally {
+        setIsReloading(false);
+        setActivity(null);
+      }
+    },
+    [loadLocal]);
+
+  return { envelopes, failures, isReloading, activity, refresh, refreshAll, loadLocal };
 }

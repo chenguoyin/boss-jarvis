@@ -1,4 +1,4 @@
-import { SquareDashed } from "lucide-react";
+import { RefreshCw, SquareDashed } from "lucide-react";
 import type { AppSection } from "@/lib/sections";
 import { isMissing } from "@/lib/contract";
 import type { SkillFailure } from "@/hooks/useSkillData";
@@ -24,6 +24,7 @@ import AuditLogView from "./AuditLogView";
 import { parseAuditLog } from "@/lib/auditLog";
 import type { OATodoItem } from "@/lib/oaTodo";
 import type { ManagedSkill } from "@/lib/skillManager";
+import type { HomeModuleConfig } from "@/lib/config";
 
 interface Props {
   section: AppSection;
@@ -44,6 +45,7 @@ interface Props {
   };
   isRunning: boolean;
   onRun: () => void;
+  onSectionRefresh: () => void;
   onNavigate: (sectionId: string) => void;
   oa: {
     approvalStatus: string | null;
@@ -61,6 +63,7 @@ interface Props {
   skills: {
     onToggle: (skill: ManagedSkill) => void;
   };
+  homeModules: HomeModuleConfig;
 }
 
 function displayValue(value: unknown): string {
@@ -79,10 +82,12 @@ export default function SkillDataView({
   audit,
   isRunning,
   onRun,
+  onSectionRefresh,
   onNavigate,
   oa,
   mail,
   skills,
+  homeModules,
 }: Props) {
   const loaded = section.skills
     .map((skill) => ({ skill, envelope: envelopes[skill] }))
@@ -115,6 +120,19 @@ export default function SkillDataView({
 
   return (
     <div className="jv-placeholder">
+      <div className="jv-section-header">
+        <div className="jv-title">{section.title}</div>
+        <button
+          type="button"
+          className="jv-icon-plain"
+          title="调用 Skill 获取真实数据"
+          aria-label="刷新本分区"
+          onClick={onSectionRefresh}
+          disabled={isRunning}
+        >
+          <RefreshCw size={15} strokeWidth={2} className={isRunning ? "jv-refresh-spin" : undefined} />
+        </button>
+      </div>
       {failures.length > 0 && (
         <div className="jv-failure-banner" role="status">
           {failures.map((failure) => (
@@ -125,7 +143,12 @@ export default function SkillDataView({
         </div>
       )}
       {section.id === "dashboard" ? (
-        <DashboardView snapshot={dashboardSnapshot} onNavigate={onNavigate} onOpenMailReply={mail.onOpenReply} />
+        <DashboardView
+          snapshot={dashboardSnapshot}
+          onNavigate={onNavigate}
+          onOpenMailReply={mail.onOpenReply}
+          homeModules={homeModules}
+        />
       ) : section.id === "skills" ? (
         <SkillManagerView result={skillManager} onToggle={skills.onToggle} />
       ) : section.id === "calendar" ? (
