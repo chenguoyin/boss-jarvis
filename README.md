@@ -1,89 +1,66 @@
 # boss-jarvis
 
-面向 BOSS 的原生 macOS AI 工作台。当前工程优先支持 macOS Intel，使用 SwiftUI 构建，不引入第三方依赖。
+面向 BOSS 的单代码库 AI 工作台：Tauri 2 壳（Rust + React/TypeScript），一套代码同时产出 macOS 与 Windows 安装包。
+SwiftUI 原生版仅在迁移期保留于 `legacy/` 作为 1:1 黄金参照，验收通过后退役。
+
+## 架构
+
+```text
+Tauri 2 单壳（一套代码，双端复用）
+├── 前端 React/TS   → 导航壳 + 12 分区视图 + 主题/字号/配置 + 确认中心 + 审计展示
+├── Rust 核心       → 窗口生命周期 + Skill 执行/命令桥 + 数据目录适配
+├── 设计系统 tokens → jarvis* 色板/字号/圆角/阴影，亮暗两套
+└── skills/manifest.json → Skill → 平台 → 脚本唯一入口
+```
+
+平台差异只收敛在 Skill 层：通用 Skill 双端复用；邮件/日历等原生能力按 macos/windows 在 manifest 分叉，输出同一份 JSON 契约。
 
 ## 当前范围
 
-老板驾驶舱首页按「10 秒掌握全局」改版，首屏为 5 个模块 + 1 条全局结论条：
+- 老板驾驶舱：全局结论条、Top3 待办提醒、跨系统聚合行、经营速览、风险提示、待回复邮件。
+- 12 分区：驾驶舱、每日晨报、OA 待办、经营情况、资金费用、邮件、日历提醒、每周总结、Skill 管理、审计日志、确认中心（入口在 Skill 管理启停）、系统配置（顶栏齿轮）。
+- 数据全部来自本地 Skill（Playwright / AppleScript / Swift 采集），输出 JSON 到 `~/.boss-jarvis/data/`，壳层只读契约渲染，缺字段显示「未获取」。
 
-- 全局结论条：需处理总数、紧急数、待回复邮件数，一键进入第一优先事项。
-- 今日待办提醒：按红 > 黄 > 绿排序，只列 Top 3，一键去处理。
-- 今日需处理事项：OA 审批 / 邮件待回复 / 今日日程聚合，点击进入对应系统。
-- 经营情况速览：今日收入确认、本月收入、年度利润、应收余额、逾期应收 5 卡，缺字段如实显示「未获取」。
-- 风险提示与建议：红黄提醒 + 虹翼关注项，附 AI 建议与影响程度。
-- 待回复邮件：前 3 封摘要，回复直接打开邮件客户端草稿，不代发。
-- 顶栏「自定义模块」支持模块排序与显隐，配置存 UserDefaults。
-- 无待办 / 无风险时显示「今日无紧急事项」正向状态，不留空白。
+## 写操作规则
 
-其余页面保持不变：OA 待办、邮件、日历提醒、经营情况、每日晨报、确认中心、Skill 管理、审计日志与系统配置。
+- OA/SPM 审批：待办详情弹层点「同意/不同意」即确认，直接真实执行并写审计。
+- Skill 启停：先进确认中心，用户确认后执行并留痕。
+- 邮件：点主题仅标记该封已读；点回复只打开邮件客户端草稿窗口，绝不自动发送。
+- 全部取数、分析、拟执行、实际执行都进审计留痕（`~/.codex/workbench-audit/`）。
 
-已接入真实数据：OA 待办、业务协作平台待办、邮件（macOS Mail）、日历提醒（macOS Calendar/Reminders）、虹翼今日专项与经营总览，均由本地 Skill 通过 Playwright / AppleScript 采集，输出 JSON 到 `~/.boss-jarvis/data/`。OA 审批在待办详情弹层点“同意/不同意”后直接执行真实提交，执行记录留在确认中心审计；Skill 启停、AI 对话识别的写操作仍先进入确认中心；邮件例外：点击主题直接把该邮件标记为已读并同步 Mail 客户端，点击回复直接在邮件客户端打开草稿窗口，发送由用户手动点击。
+## 配置
 
-## 系统配置
-
-打开 App 后可通过系统菜单的 `Settings...` 或首页右上角齿轮进入配置。
-
-当前配置项：
-
-| 配置项 | 默认值 | 说明 |
-|---|---:|---|
-| 标题字号 | 14 | 首页标题、卡片标题、事项标题 |
-| 正文字号 | 12 | 说明、来源、状态描述 |
-
-配置保存到本机 `UserDefaults`，不写入源码，不包含账号、密码或 API Key。
+系统配置（顶栏齿轮）：三态主题（跟随系统/浅色/深色）、标题字号（默认 14）、正文字号（默认 12）、OA/LLM 运行环境变量。
+配置存 localStorage 与 `~/.boss-jarvis/skill-env.conf`，凭证不进源码。
 
 ## 环境
 
-- macOS Intel: `x86_64`
-- Xcode 26.3
-- Swift 6.2+
-- macOS 13 或以上
+- Node 22+ / npm
+- Rust stable（Tauri 2）
+- macOS 13+（开发与打包）；Windows 10+（Phase T 打包，依赖 WebView2）
 
-## 构建
-
-```bash
-swift build
-```
-
-## 测试
+## 常用命令
 
 ```bash
-swift test
-```
-
-## 运行
-
-```bash
-swift run boss-jarvis
-```
-
-## 生成 App 包
-
-```bash
-./scripts/build-app.sh
-```
-
-生成位置：
-
-```text
-.build/app/Boss Jarvis.app
+npm install
+npm run tauri dev        # 本地窗口开发（macOS）
+npm run build            # 前端类型检查 + 构建
+npm run check:design     # 设计令牌约束检查
+npm run check:shell      # 壳层布局尺寸检查
+cd src-tauri && cargo check && cargo test
+npm run tauri build      # 打安装包（macOS）
 ```
 
 ## 设计边界
 
-- 不硬编码 OA 账号、密码、API Key、Cookie、Token。
-- 不直接调用未授权接口。
-- 所有系统取数和操作通过后续 Skill / Playwright / 原生 App 桥接。
-- 写操作默认禁止直接执行，必须先确认。
-- 每次取数、分析、拟执行和实际执行都应进入审计留痕。
+- 一套壳、一份前端、一份 Rust 核心；出现第二套壳即偏离目标。
+- UI 颜色只用 `var(--jv-*)`，字号只用字号类，禁止写死。
+- 不硬编码凭证；不调用未授权接口；写操作必须确认（邮件标记已读/打开草稿除外）并留痕。
+- `docs/skill-output-contract.md` 是壳与 Skill 的唯一接口，先改契约再动解析。
 
-## 后续接入方向
+## 迁移状态
 
-- `oa-todo`：读取 OA 待办、详情、审批建议。
-- `spm-todo`：读取业务协作平台待办。
-- `reminder-center`：聚合 OA、邮件、日历和系统提醒。
-- `company-mail`：读取邮件、生成回复草稿。
-- `native-calendar`：读取日历和提醒事项。
-- `hongyi-business-overview`：经营态势数据。
-- `skill-manager`：安装、启用、停用、卸载和权限声明。
-- `audit-log`：统一审计留痕。
+Phase 0-4 已完成（壳层、契约链、12 视图、确认中心/写命令/配置），Phase 5 收敛进行中：
+SwiftUI vs Tauri 并排 1:1 比对通过后删除 `legacy/`。
+Phase T（尾段单独处理）：Windows 邮件/日历 Skill、Node sidecar、Windows CI、实机验收。
+详见 [docs/migration-plan.md](docs/migration-plan.md)。

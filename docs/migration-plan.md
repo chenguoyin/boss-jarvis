@@ -110,7 +110,18 @@ macOS 与 Windows 共用同一套前端、Rust 核心与设计系统；平台差
   恢复默认全部通过；3 主题 × 11 分区共 33 张截图无空白。
 
 ### Phase 5：收敛与退役
-- macOS Tauri 版 1:1 验收通过 → 删除 legacy → 单代码库定稿
+- [x] 2026-08-26 macOS 实机比对：Tauri 壳 12 分区截图 + 布局实测归档于
+  `docs/acceptance/`（导航 72 / 热区 52×52 / 图标 15 / 顶栏 60，
+  面包屑垂直居中）。说明：任务描述中的热区 64 与黄金参照源码不符，
+  `legacy/ContentView.swift` 与 `DesignSystem.swift` 实际均为 52×52、
+  选中背景 42×42，Tauri 版按源码事实对齐。
+- [ ] 人工终审并排截图（三主题 × 12 分区）确认无视觉回退后，
+  删除 `legacy/` 并提交单代码库定稿。
+
+验收证据：
+- `docs/acceptance/tauri-shell-metrics.json`：Playwright 实测布局数值。
+- `docs/acceptance/tauri-sections-overview.png`：11 个侧栏可达分区截图总览
+  （确认中心由 Skill 管理触发后直达，无独立侧栏入口，与 legacy 一致）。
 
 ### Phase T（尾段单独处理）
 - Tauri sidecar 内嵌 node.exe（最终用户零安装，仅依赖 WebView2）

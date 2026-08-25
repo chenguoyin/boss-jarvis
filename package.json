@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "lint": "eslint src --ext .ts,.tsx",
-    "check:design": "node scripts/check-design-tokens.mjs"
+    "check:design": "node scripts/check-design-tokens.mjs",
+    "check:shell": "node scripts/check-shell-layout.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.11.1",
