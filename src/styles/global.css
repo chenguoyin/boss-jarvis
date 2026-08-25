@@ -1,0 +1,94 @@
+@import "./tokens.css";
+@import "./components.css";
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
+    "Microsoft YaHei", "PingFang SC", sans-serif;
+  background: var(--jv-page);
+  color: var(--jv-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  user-select: none;
+  overflow: hidden;
+}
+
+button {
+  font-family: inherit;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: inherit;
+}
+
+/* 字号走配置方法：组件只引用这些 CSS 变量 */
+.jv-title {
+  font-size: var(--jv-fs-title);
+  font-weight: var(--jv-fw-title);
+}
+
+.jv-body {
+  font-size: var(--jv-fs-body);
+  font-weight: var(--jv-fw-body);
+}
+
+.jv-caption {
+  font-size: var(--jv-fs-caption);
+  font-weight: var(--jv-fw-caption);
+}
+
+.jv-control {
+  font-size: var(--jv-fs-control);
+  font-weight: var(--jv-fw-control);
+}
+
+.jv-data {
+  font-size: var(--jv-fs-data);
+  font-weight: var(--jv-fw-data);
+}
+
+/* 应用骨架：导航 + 分隔线 + 主区 */
+.jv-shell {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  background: var(--jv-app);
+}
+
+.jv-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  background: var(--jv-panel);
+}
+
+.jv-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--jv-panel);
+}
+
+/* 导航选中态：固定深色强调面 + 白字 */
+.jv-nav-active {
+  background: linear-gradient(
+    to bottom,
+    var(--jv-nav-active-a),
+    var(--jv-nav-active-b)
+  );
+  color: var(--jv-nav-active-fg);
+  box-shadow: var(--jv-shadow-nav-active);
+}

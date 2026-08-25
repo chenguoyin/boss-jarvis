@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 1,
+  "skillsRoot": "~/.codex/skills",
+  "skills": {
+    "oa-todo": {
+      "displayName": "OA 待办",
+      "kind": "common",
+      "runner": "node",
+      "fetch": "fetch-todo-with-analysis.cjs",
+      "actions": { "approve": "approve-todo.cjs" }
+    },
+    "spm-todo": {
+      "displayName": "业务协作待办",
+      "kind": "common",
+      "runner": "node",
+      "fetch": "fetch-spm-todo.cjs",
+      "actions": { "approve": "approve-todo.cjs" }
+    },
+    "hongyi-today-metrics": {
+      "displayName": "虹翼今日专项",
+      "kind": "common",
+      "runner": "node",
+      "fetch": "fetch-today-metrics.cjs"
+    },
+    "hongyi-business-overview": {
+      "displayName": "虹翼经营总览",
+      "kind": "common",
+      "runner": "node",
+      "fetch": "fetch-business.cjs"
+    },
+    "reminder-center": {
+      "displayName": "提醒中心",
+      "kind": "common",
+      "runner": "node",
+      "fetch": "aggregate-reminders.cjs"
+    },
+    "daily-briefing": {
+      "displayName": "每日晨报",
+      "kind": "common",
+      "runner": "node",
+      "fetch": "run-briefing.cjs",
+      "actions": { "schedule": "manage-schedule.cjs" }
+    },
+    "skill-manager": {
+      "displayName": "Skill 管理",
+      "kind": "common",
+      "runner": "node",
+      "fetch": "manage-skills.cjs"
+    },
+    "weekly-summary": {
+      "displayName": "每周总结",
+      "kind": "common",
+      "runner": "node",
+      "fetch": "generate-weekly-summary.cjs"
+    },
+    "boss-cockpit": {
+      "displayName": "老板驾驶舱",
+      "kind": "common",
+      "runner": "node",
+      "fetch": "build-cockpit.cjs"
+    },
+    "audit-log": {
+      "displayName": "审计日志",
+      "kind": "common",
+      "runner": "node",
+      "fetch": "record-audit.cjs"
+    },
+    "ai-chat-dispatcher": {
+      "displayName": "AI 对话调度",
+      "kind": "common",
+      "runner": "node",
+      "actions": { "route": "route-command.cjs" }
+    },
+    "company-mail": {
+      "displayName": "邮件",
+      "kind": "platform",
+      "macos": {
+        "runner": "node",
+        "fetch": "fetch-unread-mail.cjs",
+        "actions": {
+          "mark-read": "mark-mail-read.cjs",
+          "generate-reply": "generate-reply-draft.cjs",
+          "prepare-reply": "prepare-reply.cjs",
+          "open-reply": "open-confirmed-reply.cjs"
+        }
+      },
+      "windows": {
+        "runner": "powershell",
+        "pending": true,
+        "note": "Phase T: Outlook COM / Microsoft Graph",
+        "fetch": null,
+        "actions": {}
+      }
+    },
+    "native-calendar": {
+      "displayName": "日历提醒",
+      "kind": "platform",
+      "macos": {
+        "runner": "swift",
+        "fetch": "fetch-today.swift"
+      },
+      "windows": {
+        "runner": "powershell",
+        "pending": true,
+        "note": "Phase T: Outlook COM / Microsoft Graph",
+        "fetch": null
+      }
+    }
+  }
+}

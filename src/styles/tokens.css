@@ -1,0 +1,117 @@
+/* ============================================================
+   boss-jarvis 设计系统 tokens（单一事实来源）
+   1:1 移植自 legacy/Sources/BossJarvis/DesignSystem.swift
+   颜色只允许引用 var(--jv-*)，禁止在组件里写死 RGB/white/black/gray。
+   ============================================================ */
+
+:root {
+  /* 背景层级 */
+  --jv-page: #eceef0;
+  --jv-app: #fbfbfd;
+  --jv-panel: #f3f5f8;
+  --jv-card: #ffffff;
+  --jv-card-soft: #fafafb;
+
+  /* 文字层级 */
+  --jv-text: #252939;
+  --jv-muted: #747b8d;
+  --jv-faint: #a2a8b5;
+  --jv-ink: #252525;
+
+  /* 分隔线 / 描边 */
+  --jv-line: #e6e8ed;
+
+  /* 强调 / 状态 */
+  --jv-blue: #2797f5;
+  --jv-green: #23ad75;
+  --jv-amber: #e0b020;
+  --jv-red: #ec6270;
+  --jv-purple: #7067d9;
+  --jv-verdict: #f0f8fe;
+
+  /* 导航徽标：金色固定标识，两主题同值，深色文字保证可读 */
+  --jv-badge: #f7de5c;
+  --jv-badge-text: #252525;
+  --jv-fixed-white: #ffffff;
+
+  /* 导航选中态：固定深色强调面 + 白字，两主题同值 */
+  --jv-nav-active-a: #3b3b3b;
+  --jv-nav-active-b: #080809;
+  --jv-nav-active-fg: #ffffff;
+  --jv-nav-active-stroke: rgba(255, 255, 255, 0.17);
+
+  /* 字号：默认值，运行时由 config.ts 依据用户配置覆盖 */
+  --jv-fs-title: 14px;
+  --jv-fs-body: 12px;
+  --jv-fs-caption: 11px;
+  --jv-fs-control: 14px;
+  --jv-fs-data: 31.5px;
+
+  /* 字号权重（组件只引用这里，不写死 weight 数值） */
+  --jv-fw-title: 700;
+  --jv-fw-body: 400;
+  --jv-fw-caption: 400;
+  --jv-fw-control: 600;
+  --jv-fw-data: 700;
+
+  /* 尺寸 */
+  --jv-nav-w: 72px;
+  --jv-nav-item: 52px;
+  --jv-nav-active: 42px;
+  --jv-nav-icon: 15px;
+  --jv-topbar-h: 60px;
+
+  /* 圆角 */
+  --jv-radius-card: 24px;
+  --jv-radius-icon: 14px;
+  --jv-radius-nav: 14px;
+  --jv-radius-iconplain: 8px;
+  --jv-radius-theme-btn: 7px;
+  --jv-radius-theme: 9px;
+  --jv-radius-pill: 999px;
+  --jv-radius-segment: 999px;
+
+  /* 阴影 */
+  --jv-shadow-card: 0 13px 24px rgba(0, 0, 0, 0.055);
+  --jv-shadow-icon: 0 7px 12px rgba(0, 0, 0, 0.055);
+  --jv-shadow-nav-active: 0 8px 14px rgba(0, 0, 0, 0.18);
+  --jv-shadow-pill: 0 12px 18px rgba(0, 0, 0, 0.22);
+  --jv-shadow-theme: 0 2px 4px rgba(0, 0, 0, 0.08);
+  --jv-stroke-white-82: rgba(255, 255, 255, 0.82);
+  --jv-stroke-white-17: rgba(255, 255, 255, 0.17);
+
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  --jv-page: #18191c;
+  --jv-app: #1e1f23;
+  --jv-panel: #26272c;
+  --jv-card: #2c2e34;
+  --jv-card-soft: #32343a;
+
+  --jv-text: #e8eaf0;
+  --jv-muted: #9ea4b2;
+  --jv-faint: #6e7480;
+  --jv-ink: #e8eaf0;
+
+  --jv-line: #3a3c42;
+
+  --jv-blue: #4aa8fa;
+  --jv-green: #34be86;
+  --jv-amber: #ecbe34;
+  --jv-red: #f27480;
+  --jv-purple: #847ce2;
+  --jv-verdict: #242c36;
+
+  --jv-badge: #f7de5c;
+  --jv-badge-text: #252525;
+  --jv-fixed-white: #ffffff;
+
+  --jv-nav-active-a: #3b3b3b;
+  --jv-nav-active-b: #080809;
+  --jv-nav-active-fg: #ffffff;
+  --jv-nav-active-stroke: rgba(255, 255, 255, 0.17);
+
+  color-scheme: dark;
+}
