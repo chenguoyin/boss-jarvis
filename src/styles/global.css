@@ -78,6 +78,7 @@ button {
 .jv-content {
   flex: 1;
   min-height: 0;
+  padding: 14px 28px 28px;
   overflow-y: auto;
   background: var(--jv-panel);
 }
