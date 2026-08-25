@@ -4,6 +4,8 @@ import { isMissing } from "@/lib/contract";
 import type { SkillFailure } from "@/hooks/useSkillData";
 import SkillManagerView from "./SkillManagerView";
 import { parseSkillManager } from "@/lib/skillManager";
+import NativeCalendarView from "./NativeCalendarView";
+import { parseNativeCalendar } from "@/lib/nativeCalendar";
 
 interface Props {
   section: AppSection;
@@ -25,6 +27,9 @@ export default function SkillDataView({ section, envelopes, failures }: Props) {
   const skillManager = envelopes["skill-manager"]
     ? parseSkillManager(envelopes["skill-manager"] as import("@/lib/contract").SkillEnvelope)
     : null;
+  const nativeCalendar = envelopes["native-calendar"]
+    ? parseNativeCalendar(envelopes["native-calendar"] as import("@/lib/contract").SkillEnvelope)
+    : null;
 
   return (
     <div className="jv-placeholder">
@@ -39,6 +44,8 @@ export default function SkillDataView({ section, envelopes, failures }: Props) {
       )}
       {section.id === "skills" ? (
         <SkillManagerView result={skillManager} />
+      ) : section.id === "calendar" ? (
+        <NativeCalendarView result={nativeCalendar} />
       ) : (
         <>
           <SquareDashed size={40} strokeWidth={1.5} />

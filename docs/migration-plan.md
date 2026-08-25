@@ -47,6 +47,9 @@ macOS 与 Windows 共用同一套前端、Rust 核心与设计系统；平台差
 - [x] Skill 管理视图（展示层）：`src/components/SkillManagerView.tsx` +
   `src/lib/skillManager.ts`。表格列、生命周期徽标、运行状态、空态/未获取态
   与 legacy `SkillManagerView.swift` 对齐；启停/安装/卸载写操作待 Phase 4 确认中心接入。
+- [x] 日历提醒视图（只读 + 详情弹层）：`src/components/NativeCalendarView.tsx` +
+  `src/lib/nativeCalendar.ts`。今日日程/提醒两张表、级别映射、行点击详情弹层、
+  空态与「未获取」态与 legacy `NativeCalendarView.swift` 对齐。
 
 ### Phase 4：确认中心 / 审计 / 配置
 - 行为一致：OA 详情弹层点同意/不同意即确认直接执行并审计；Skill 启停/AI 写操作先进确认中心；邮件只标记已读/打开草稿，绝不自动发送

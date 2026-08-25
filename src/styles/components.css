@@ -449,3 +449,138 @@
 .jv-level-missing {
   color: var(--jv-faint);
 }
+
+.jv-pill-normal {
+  background: color-mix(in srgb, var(--jv-normal) 12%, transparent);
+  color: var(--jv-normal);
+}
+
+.jv-calendar-sections {
+  display: flex;
+  flex-direction: column;
+  margin-top: 16px;
+}
+
+.jv-calendar-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.jv-calendar-section + .jv-calendar-section {
+  margin-top: 20px;
+}
+
+.jv-calendar-section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--jv-text);
+  font-weight: 600;
+}
+
+.jv-calendar-section-title svg {
+  color: var(--jv-blue);
+}
+
+.jv-calendar-event-row {
+  display: grid;
+  grid-template-columns: 36px 1fr 140px 170px 64px;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--jv-line) 60%, transparent);
+}
+
+.jv-calendar-reminder-row {
+  display: grid;
+  grid-template-columns: 36px 1fr 170px 64px;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--jv-line) 60%, transparent);
+}
+
+.jv-calendar-event-row:last-child,
+.jv-calendar-reminder-row:last-child {
+  border-bottom: none;
+}
+
+.jv-calendar-item {
+  text-align: left;
+  width: 100%;
+}
+
+.jv-calendar-item:hover .jv-skill-name {
+  text-decoration: underline;
+}
+
+.jv-calendar-col-calendar,
+.jv-calendar-col-time,
+.jv-calendar-col-level {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jv-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, var(--jv-page) 55%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.jv-sheet {
+  width: 520px;
+  max-height: 420px;
+  padding: 24px;
+  background: var(--jv-card);
+  border: 1px solid var(--jv-line);
+  border-radius: var(--jv-radius-card);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.jv-sheet-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid var(--jv-line);
+  padding-bottom: 12px;
+}
+
+.jv-sheet-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-y: auto;
+}
+
+.jv-sheet-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  background: var(--jv-card-soft);
+  border-radius: 10px;
+}
+
+.jv-sheet-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--jv-text);
+  font-weight: 600;
+}
+
+.jv-sheet-label svg {
+  color: var(--jv-blue);
+}
+
+.jv-sheet-text {
+  color: var(--jv-text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
