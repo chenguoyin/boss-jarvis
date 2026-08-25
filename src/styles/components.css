@@ -727,6 +727,134 @@
   color: var(--jv-urgent);
 }
 
+/* ---------- OA 待办 / 资金费用 ---------- */
+.jv-oa-mismatch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.jv-oa-empty-list {
+  text-align: center;
+  padding: 40px 0;
+}
+
+.jv-oa-table {
+  display: flex;
+  flex-direction: column;
+  margin-top: 16px;
+}
+
+.jv-oa-row {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) 56px 56px 110px 100px 80px 130px;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 12px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--jv-line) 60%, transparent);
+  text-align: left;
+}
+
+.jv-oa-row-head {
+  padding: 8px 0;
+  color: var(--jv-muted);
+  font-weight: 600;
+}
+
+.jv-oa-row-body:hover {
+  background: color-mix(in srgb, var(--jv-text) 4%, transparent);
+}
+
+.jv-oa-row:last-child {
+  border-bottom: none;
+}
+
+.jv-oa-title {
+  color: var(--jv-text);
+  font-weight: 500;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.jv-oa-risk {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jv-oa-suggestion {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jv-oa-sheet {
+  width: 640px;
+  max-height: 520px;
+}
+
+.jv-oa-sheet-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.jv-oa-priority {
+  padding: 3px 8px;
+  border-radius: var(--jv-radius-pill);
+  background: color-mix(in srgb, var(--jv-blue) 12%, transparent);
+  color: var(--jv-text);
+  font-weight: 700;
+}
+
+.jv-oa-risk-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.jv-expense-list {
+  display: flex;
+  flex-direction: column;
+  margin-top: 16px;
+}
+
+.jv-expense-row {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) 90px;
+  align-items: center;
+  column-gap: 4px;
+  padding: 10px 0;
+  border-bottom: 0.5px solid color-mix(in srgb, var(--jv-line) 80%, transparent);
+}
+
+.jv-expense-row:last-child {
+  border-bottom: none;
+}
+
+.jv-expense-index {
+  text-align: center;
+  color: var(--jv-faint);
+}
+
+.jv-expense-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.jv-expense-main .jv-caption {
+  display: flex;
+  gap: 10px;
+}
+
 .jv-pill-normal {
   background: color-mix(in srgb, var(--jv-normal) 12%, transparent);
   color: var(--jv-normal);

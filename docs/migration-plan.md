@@ -63,6 +63,11 @@ macOS 与 Windows 共用同一套前端、Rust 核心与设计系统；平台差
   `src/lib/hongyiBusiness.ts`。今日专项 / 部门看板 / 经营总览三组指标、
   接入状态胶囊、数据质量横幅与「未获取」态与 legacy 对齐；
   口径全部来自 `bossView.todayMetrics` / `bossView.overview`，壳层不解析旧字段。
+- [x] OA 待办 / 资金费用视图（只读 + 详情弹层）：
+  `src/components/OATodoView.tsx` + `ExpenseTodoView.tsx` + `src/lib/oaTodo.ts`。
+  共用 oa-todo 契约解析（items[].analysis），风险级别 red/yellow/green 映射
+  urgent/attention/normal；行点击详情弹层、计数不一致提示、发送人回退创建人、
+  资金费用按智能财务/费控/资金关键字过滤。审批写操作待 Phase 4 接确认执行链。
 
 ### Phase 4：确认中心 / 审计 / 配置
 - 行为一致：OA 详情弹层点同意/不同意即确认直接执行并审计；Skill 启停/AI 写操作先进确认中心；邮件只标记已读/打开草稿，绝不自动发送

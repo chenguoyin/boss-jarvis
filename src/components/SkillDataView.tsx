@@ -12,6 +12,9 @@ import WeeklySummaryView from "./WeeklySummaryView";
 import { parseWeeklySummary } from "@/lib/weeklySummary";
 import HongyiBusinessView from "./HongyiBusinessView";
 import { buildHongyiSnapshot } from "@/lib/hongyiBusiness";
+import OATodoView from "./OATodoView";
+import ExpenseTodoView from "./ExpenseTodoView";
+import { parseOATodo } from "@/lib/oaTodo";
 
 interface Props {
   section: AppSection;
@@ -59,6 +62,7 @@ export default function SkillDataView({
     envelopes["hongyi-today-metrics"] as import("@/lib/contract").SkillEnvelope | null ?? null,
     envelopes["hongyi-business-overview"] as import("@/lib/contract").SkillEnvelope | null ?? null,
   );
+  const oaTodo = parseOATodo(envelopes["oa-todo"] as import("@/lib/contract").SkillEnvelope | null ?? null);
 
   return (
     <div className="jv-placeholder">
@@ -86,6 +90,10 @@ export default function SkillDataView({
         />
       ) : section.id === "business" ? (
         <HongyiBusinessView snapshot={hongyiSnapshot} />
+      ) : section.id === "oa-todo" ? (
+        <OATodoView result={oaTodo} />
+      ) : section.id === "funds" ? (
+        <ExpenseTodoView result={oaTodo} />
       ) : (
         <>
           <SquareDashed size={40} strokeWidth={1.5} />
