@@ -80,6 +80,26 @@ macOS 与 Windows 共用同一套前端、Rust 核心与设计系统；平台差
 ### Phase 4：确认中心 / 审计 / 配置
 - 行为一致：OA 详情弹层点同意/不同意即确认直接执行并审计；Skill 启停/AI 写操作先进确认中心；邮件只标记已读/打开草稿，绝不自动发送
 
+落地记录：
+- [x] Rust 写操作命令层：`src-tauri/src/command_runtime.rs`。
+  `approve_todo`（OA/SPM 审批直达执行）、`toggle_skill`（启停）、
+  `mark_mail_read`（单封已读）、`open_mail_reply`（三段式生成草稿→加工→打开
+  回复窗口，绝不代发）；全部经 audit-log Skill 写留痕。
+- [x] manifest 动作注册：`skills/manifest.json` 为 skill-manager/audit-log 补
+  actions 映射；`manifest.rs` 按 common/platform 解析当前平台的动作脚本。
+- [x] OA 审批弹层：`OATodoView.tsx` 详情内审批意见 + 同意/不同意，点击即真实
+  执行并显示结果；不经过确认中心中转，与 legacy 行为一致。
+- [x] 邮件写操作：`MailView.tsx` 点主题标记该封已读并从列表隐藏；详情弹层
+  「回复」走三段草稿链路，只打开客户端回复窗口；驾驶舱待回复卡同步接线。
+- [x] 确认中心：`ConfirmationCenterView.tsx` + `src/lib/confirmationCenter.ts`。
+  Skill 启停入队（不直接执行），批量勾选串行执行、跳过、已处理留档；
+  入口与 legacy 一致不走侧栏，Skill 管理页触发后直达。
+- [x] 系统配置：`SettingsView.tsx` 三态主题、标题/正文字号滑条（12-24 / 10-20，
+  默认 14/12）持久化；OA 账号/LLM/NODE_PATH 读写 `~/.boss-jarvis/skill-env.conf`，
+  密码与 API Key 默认遮蔽，凭证不进源码。
+- [x] 设计令牌补齐 `--jv-on-accent`（亮暗各一）用于蓝底主按钮文字，
+  避免暗色主题对比度回退。
+
 ### Phase 5：收敛与退役
 - macOS Tauri 版 1:1 验收通过 → 删除 legacy → 单代码库定稿
 
@@ -98,4 +118,5 @@ macOS 与 Windows 共用同一套前端、Rust 核心与设计系统；平台差
 - 金额/日期/人名只来自源系统；「未获取」不得用猜测数据填充。
 
 ## 待定决策
-- 确认中心是否显式加入左侧导航（当前 SwiftUI 从驾驶舱入口进入）。
+- 确认中心不进侧栏（与 legacy 一致）；当前入口为 Skill 管理页启停动作直达，
+  后续可按需在驾驶舱聚合卡补「待确认」入口。

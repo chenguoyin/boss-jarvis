@@ -1,6 +1,7 @@
 mod manifest;
 mod paths;
 mod skill_runtime;
+mod command_runtime;
 
 /// 晨报产物由 daily-briefing 巡检写到 ~/.codex/workbench-reports/latest/，
 /// 壳层只读该文件，不解释巡检 stdout。
@@ -131,6 +132,42 @@ fn read_audit_log(date: String) -> Option<String> {
     std::fs::read_to_string(path).ok()
 }
 
+#[tauri::command]
+fn approve_todo(skill: String, title: String, comment: String, approve: bool) -> command_runtime::CommandOutcome {
+    command_runtime::approve_todo(&skill, &title, &comment, approve)
+}
+
+#[tauri::command]
+fn toggle_skill(skill_id: String, enable: bool) -> command_runtime::CommandOutcome {
+    command_runtime::toggle_skill(&skill_id, enable)
+}
+
+#[tauri::command]
+fn mark_mail_read(message_id: i64) -> command_runtime::CommandOutcome {
+    command_runtime::mark_mail_read(message_id)
+}
+
+#[tauri::command]
+fn open_mail_reply(
+    to: String,
+    subject: String,
+    body_summary: String,
+    reply_basis: String,
+    sender: String,
+) -> command_runtime::CommandOutcome {
+    command_runtime::open_mail_reply(&to, &subject, &body_summary, &reply_basis, &sender)
+}
+
+#[tauri::command]
+fn read_skill_env() -> std::collections::HashMap<String, String> {
+    command_runtime::read_skill_env()
+}
+
+#[tauri::command]
+fn write_skill_env(values: std::collections::HashMap<String, String>) -> command_runtime::CommandOutcome {
+    command_runtime::write_skill_env(&values)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -143,7 +180,13 @@ pub fn run() {
             weekly_summary_dates,
             read_weekly_summary_archive,
             audit_log_dates,
-            read_audit_log
+            read_audit_log,
+            approve_todo,
+            toggle_skill,
+            mark_mail_read,
+            open_mail_reply,
+            read_skill_env,
+            write_skill_env
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

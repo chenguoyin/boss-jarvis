@@ -1455,3 +1455,314 @@
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+/* ---------- 写操作与配置 ---------- */
+.jv-oa-approval {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid var(--jv-line);
+  padding-top: 14px;
+}
+
+.jv-oa-comment {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px;
+  color: var(--jv-text);
+  background: var(--jv-card-soft);
+  border: 1px solid var(--jv-line);
+  border-radius: 10px;
+  resize: vertical;
+}
+
+.jv-oa-approval-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.jv-oa-approve,
+.jv-oa-reject,
+.jv-mail-reply-button,
+.jv-settings-save-button,
+.jv-confirm-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 14px;
+  color: var(--jv-on-accent);
+  background: var(--jv-blue);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.jv-oa-reject {
+  color: var(--jv-red);
+  background: color-mix(in srgb, var(--jv-red) 10%, transparent);
+}
+
+.jv-oa-status,
+.jv-mail-page-status,
+.jv-mail-action-status {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--jv-card-soft);
+}
+
+.jv-mail-action-bar {
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid var(--jv-line);
+  padding-top: 12px;
+}
+
+.jv-skill-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 30px;
+  padding: 0 10px;
+  color: var(--jv-blue);
+  background: color-mix(in srgb, var(--jv-blue) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--jv-blue) 24%, transparent);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.jv-settings-card {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.jv-settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.jv-settings-row,
+.jv-settings-dir {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--jv-card-soft);
+  border-radius: 10px;
+}
+
+.jv-settings-row-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.jv-settings-label {
+  color: var(--jv-text);
+  font-weight: 600;
+}
+
+.jv-settings-row-head .jv-icon-plain {
+  margin-left: auto;
+}
+
+.jv-settings-row input[type="range"] {
+  width: 100%;
+  accent-color: var(--jv-blue);
+}
+
+.jv-settings-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 9px 10px;
+  color: var(--jv-text);
+  background: var(--jv-card);
+  border: 1px solid var(--jv-line);
+  border-radius: 8px;
+}
+
+.jv-settings-theme {
+  display: inline-flex;
+  gap: 8px;
+}
+
+.jv-settings-theme-option {
+  min-height: 30px;
+  padding: 0 12px;
+  color: var(--jv-muted);
+  background: var(--jv-card);
+  border: 1px solid var(--jv-line);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.jv-settings-theme-option[data-active] {
+  color: var(--jv-blue);
+  border-color: color-mix(in srgb, var(--jv-blue) 40%, transparent);
+}
+
+.jv-settings-reset,
+.jv-confirm-plain {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 0 10px;
+  color: var(--jv-muted);
+  background: color-mix(in srgb, var(--jv-text) 5%, transparent);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.jv-settings-note {
+  line-height: 1.6;
+}
+
+.jv-settings-save {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.jv-confirm-card,
+.jv-settings-card {
+  align-self: flex-start;
+  width: 100%;
+}
+
+.jv-confirm-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 10px 14px;
+  background: var(--jv-card-soft);
+  border: 1px solid var(--jv-line);
+  border-radius: 12px;
+}
+
+.jv-confirm-toolbar-spacer {
+  flex: 1;
+}
+
+.jv-confirm-count {
+  padding: 5px 10px;
+  border-radius: 999px;
+}
+
+.jv-confirm-action {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 14px;
+  background: var(--jv-card-soft);
+  border: 1px solid var(--jv-line);
+  border-radius: 14px;
+}
+
+.jv-confirm-action-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.jv-confirm-main {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+
+.jv-confirm-title {
+  color: var(--jv-text);
+}
+
+.jv-confirm-check,
+.jv-confirm-icon,
+.jv-confirm-circle {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+}
+
+.jv-confirm-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--jv-blue);
+  background: color-mix(in srgb, var(--jv-blue) 8%, transparent);
+  border: none;
+  cursor: pointer;
+}
+
+.jv-confirm-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--jv-blue);
+  background: color-mix(in srgb, var(--jv-blue) 10%, transparent);
+}
+
+.jv-confirm-circle {
+  width: 15px;
+  height: 15px;
+  border: 2px solid var(--jv-muted);
+  border-radius: 50%;
+}
+
+.jv-confirm-basis {
+  color: var(--jv-muted);
+  padding: 10px;
+  background: var(--jv-card);
+  border-radius: 10px;
+}
+
+.jv-confirm-basis b {
+  margin-right: 8px;
+  color: var(--jv-muted);
+}
+
+.jv-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.jv-confirm-primary:disabled,
+.jv-confirm-plain:disabled,
+.jv-skill-toggle:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.jv-confirm-settled {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 22px;
+}
+
+.jv-confirm-settled-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 32px;
+  padding: 0 10px;
+  background: var(--jv-card-soft);
+  border-radius: 8px;
+}
+
+.jv-confirm-settled-title {
+  color: var(--jv-text);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -25,6 +25,19 @@ export interface MailResult {
   hasAttention: boolean;
 }
 
+export function hideMailMessages(result: MailResult, ids: ReadonlySet<number>): MailResult {
+  if (ids.size === 0) return result;
+  const items = result.items.filter((item) => !ids.has(item.id));
+  return {
+    ...result,
+    items,
+    count: Math.max(result.count - (result.items.length - items.length), 0),
+    needsReplyCount: items.filter((item) => item.needsReply).length,
+    hasUrgent: items.some((item) => item.level === "urgent"),
+    hasAttention: items.some((item) => item.level === "attention"),
+  };
+}
+
 function record(value: unknown): Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
     ? (value as Record<string, unknown>)

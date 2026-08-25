@@ -38,6 +38,7 @@
   --jv-badge: #f7de5c;
   --jv-badge-text: #252525;
   --jv-fixed-white: #ffffff;
+  --jv-on-accent: #ffffff;
 
   /* 导航选中态：固定深色强调面 + 白字，两主题同值 */
   --jv-nav-active-a: #3b3b3b;
@@ -120,6 +121,7 @@
   --jv-badge: #f7de5c;
   --jv-badge-text: #252525;
   --jv-fixed-white: #ffffff;
+  --jv-on-accent: #08131d;
 
   --jv-nav-active-a: #3b3b3b;
   --jv-nav-active-b: #080809;

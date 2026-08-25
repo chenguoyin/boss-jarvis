@@ -1,14 +1,17 @@
 import {
   lifecycleLevel,
   lifecycleTitle,
+  type ManagedSkill,
   type SkillManagerResult,
 } from "@/lib/skillManager";
+import { Power } from "lucide-react";
 
 interface Props {
   result: SkillManagerResult | null;
+  onToggle: (skill: ManagedSkill) => void;
 }
 
-export default function SkillManagerView({ result }: Props) {
+export default function SkillManagerView({ result, onToggle }: Props) {
   if (result === null) {
     return (
       <div className="jv-card">
@@ -43,7 +46,7 @@ export default function SkillManagerView({ result }: Props) {
             <span>Skill</span>
             <span className="jv-skill-col-status">生命周期</span>
             <span className="jv-skill-col-status">运行状态</span>
-            <span className="jv-skill-col-actions" />
+            <span className="jv-skill-col-actions">操作</span>
           </div>
           {result.items.map((skill, index) => (
             <div key={skill.id} className="jv-skill-row jv-body jv-muted">
@@ -60,7 +63,17 @@ export default function SkillManagerView({ result }: Props) {
               <span className="jv-skill-col-status">
                 {skill.runtimeStatus === "" ? "未获取" : skill.runtimeStatus}
               </span>
-              <span className="jv-skill-col-actions" />
+              <span className="jv-skill-col-actions">
+                <button
+                  type="button"
+                  className="jv-caption jv-skill-toggle"
+                  title={(skill.enabledOnDisk ? "停用：" : "启用：") + skill.name + "，进入确认中心后执行"}
+                  onClick={() => onToggle(skill)}
+                >
+                  <Power size={15} strokeWidth={2} />
+                  {skill.enabledOnDisk ? "停用" : "启用"}
+                </button>
+              </span>
             </div>
           ))}
         </div>

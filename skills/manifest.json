@@ -46,7 +46,8 @@
       "kind": "common",
       "runner": "node",
       "fetch": "skill-manager/manage-skills.cjs",
-      "fetchArgs": ["list"]
+      "fetchArgs": ["list"],
+      "actions": { "manage": "manage-skills.cjs" }
     },
     "weekly-summary": {
       "displayName": "每周总结",
@@ -65,7 +66,8 @@
       "displayName": "审计日志",
       "kind": "common",
       "runner": "node",
-      "fetch": null
+      "fetch": null,
+      "actions": { "record": "record-audit.cjs" }
     },
     "ai-chat-dispatcher": {
       "displayName": "AI 对话调度",

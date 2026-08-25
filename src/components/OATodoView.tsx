@@ -1,13 +1,27 @@
 import { useState } from "react";
-import { FileText, ListChecks, TriangleAlert, X } from "lucide-react";
+import { Check, FileText, ListChecks, TriangleAlert, X } from "lucide-react";
 import type { OATodoItem, OATodoResult } from "@/lib/oaTodo";
 
 interface Props {
   result: OATodoResult | null;
+  onApprove: (item: OATodoItem, comment: string) => void;
+  onReject: (item: OATodoItem, comment: string) => void;
+  approvalStatus: string | null;
 }
 
-function DetailSheet({ item, onClose }: { item: OATodoItem; onClose: () => void }) {
+function DetailSheet({
+  item,
+  onClose,
+  onApprove,
+  onReject,
+}: {
+  item: OATodoItem;
+  onClose: () => void;
+  onApprove: (item: OATodoItem, comment: string) => void;
+  onReject: (item: OATodoItem, comment: string) => void;
+}) {
   const analysis = item.analysis;
+  const [comment, setComment] = useState(analysis?.suggestion ?? "");
   return (
     <div className="jv-sheet-backdrop" onClick={onClose}>
       <div className="jv-sheet jv-oa-sheet" onClick={(event) => event.stopPropagation()}>
@@ -52,12 +66,49 @@ function DetailSheet({ item, onClose }: { item: OATodoItem; onClose: () => void 
             <div className="jv-body jv-muted">该单据暂无实时风险分析，请刷新 OA 后重试。</div>
           )}
         </div>
+        <div className="jv-oa-approval">
+          <label className="jv-caption jv-muted" htmlFor="jv-oa-comment">审批意见</label>
+          <textarea
+            id="jv-oa-comment"
+            className="jv-body jv-oa-comment"
+            rows={3}
+            value={comment}
+            onChange={(event) => setComment(event.target.value)}
+            placeholder="输入审批意见"
+          />
+          <div className="jv-oa-approval-buttons">
+            <button
+              type="button"
+              className="jv-control jv-oa-approve"
+              title="同意：立即提交真实审批"
+              onClick={() => {
+                onApprove(item, comment);
+                onClose();
+              }}
+            >
+              <Check size={15} strokeWidth={2} />
+              同意
+            </button>
+            <button
+              type="button"
+              className="jv-control jv-oa-reject"
+              title="不同意/退回：立即提交真实审批"
+              onClick={() => {
+                onReject(item, comment);
+                onClose();
+              }}
+            >
+              <X size={15} strokeWidth={2} />
+              不同意
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
-export default function OATodoView({ result }: Props) {
+export default function OATodoView({ result, onApprove, onReject, approvalStatus }: Props) {
   const [selected, setSelected] = useState<OATodoItem | null>(null);
 
   if (result === null) {
@@ -87,6 +138,9 @@ export default function OATodoView({ result }: Props) {
           <TriangleAlert size={15} strokeWidth={2} />
           分页计数与列表条数不一致，请复核源系统
         </div>
+      )}
+      {approvalStatus !== null && (
+        <div className="jv-caption jv-oa-status jv-level-normal">{approvalStatus}</div>
       )}
       {result.items.length === 0 ? (
         <div className="jv-body jv-muted jv-oa-empty-list">当前没有待办</div>
@@ -123,7 +177,14 @@ export default function OATodoView({ result }: Props) {
           ))}
         </div>
       )}
-      {selected && <DetailSheet item={selected} onClose={() => setSelected(null)} />}
+      {selected && (
+        <DetailSheet
+          item={selected}
+          onClose={() => setSelected(null)}
+          onApprove={onApprove}
+          onReject={onReject}
+        />
+      )}
     </div>
   );
 }

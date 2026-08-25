@@ -47,3 +47,43 @@ export async function listAuditLogDates(): Promise<string[]> {
 export async function readAuditLog(date: string): Promise<string | null> {
   return invoke<string | null>("read_audit_log", { date });
 }
+
+export interface CommandOutcome {
+  ok: boolean;
+  summary: string;
+}
+
+export function approveTodo(input: {
+  skill: string;
+  title: string;
+  comment: string;
+  approve: boolean;
+}): Promise<CommandOutcome> {
+  return invoke<CommandOutcome>("approve_todo", input);
+}
+
+export function toggleSkill(skillId: string, enable: boolean): Promise<CommandOutcome> {
+  return invoke<CommandOutcome>("toggle_skill", { skillId, enable });
+}
+
+export function markMailRead(messageId: number): Promise<CommandOutcome> {
+  return invoke<CommandOutcome>("mark_mail_read", { messageId });
+}
+
+export function openMailReply(message: {
+  to: string;
+  subject: string;
+  bodySummary: string;
+  replyBasis: string;
+  sender: string;
+}): Promise<CommandOutcome> {
+  return invoke<CommandOutcome>("open_mail_reply", message);
+}
+
+export function readSkillEnv(): Promise<Record<string, string>> {
+  return invoke<Record<string, string>>("read_skill_env");
+}
+
+export function writeSkillEnv(values: Record<string, string>): Promise<CommandOutcome> {
+  return invoke<CommandOutcome>("write_skill_env", { values });
+}

@@ -27,6 +27,8 @@ pub struct SkillEntry {
     #[serde(default)]
     pub fetch_args: Vec<String>,
     #[serde(default)]
+    pub actions: HashMap<String, String>,
+    #[serde(default)]
     pub macos: Option<PlatformSpec>,
     #[serde(default)]
     pub windows: Option<PlatformSpec>,
@@ -38,6 +40,8 @@ pub struct PlatformSpec {
     pub fetch: Option<String>,
     #[serde(default)]
     pub fetch_args: Vec<String>,
+    #[serde(default)]
+    pub actions: HashMap<String, String>,
     #[serde(default)]
     pub pending: bool,
     pub note: Option<String>,
@@ -71,6 +75,11 @@ pub enum PlatformResolution {
 
 pub struct SkillFetchTask {
     pub id: String,
+}
+
+pub struct ResolvedAction {
+    pub runner: String,
+    pub script: String,
 }
 
 pub fn load() -> Manifest {
@@ -114,6 +123,36 @@ impl Manifest {
         tasks.sort_by(|a, b| a.id.cmp(&b.id));
         tasks
     }
+
+    /// 解析当前平台的动作脚本；确认中心和直达操作共用同一入口。
+    pub fn resolve_action(&self, id: &str, action: &str) -> Option<ResolvedAction> {
+        let entry = self.skills.get(id)?;
+        let runner;
+        let script;
+        if entry.kind == SkillKind::Common {
+            runner = entry.runner.clone()?;
+            script = entry.actions.get(action)?.clone();
+        } else {
+            let spec = platform_spec(entry)?;
+            runner = spec.runner.clone()?;
+            script = spec.actions.get(action)?.clone();
+        }
+        if script.is_empty() {
+            return None;
+        }
+        Some(ResolvedAction { runner, script })
+    }
+}
+
+fn platform_spec(entry: &SkillEntry) -> Option<&PlatformSpec> {
+    if entry.kind == SkillKind::Common {
+        return None;
+    }
+    #[cfg(target_os = "windows")]
+    let spec = entry.windows.as_ref();
+    #[cfg(not(target_os = "windows"))]
+    let spec = entry.macos.as_ref();
+    spec
 }
 
 fn resolve_for_current_os(entry: &SkillEntry) -> Option<PlatformResolution> {

@@ -16,12 +16,14 @@ import OATodoView from "./OATodoView";
 import ExpenseTodoView from "./ExpenseTodoView";
 import { parseOATodo } from "@/lib/oaTodo";
 import MailView from "./MailView";
-import { parseCompanyMail } from "@/lib/mail";
+import { hideMailMessages, parseCompanyMail, type MailMessage } from "@/lib/mail";
 import DashboardView from "./DashboardView";
 import { buildDashboardSnapshot } from "@/lib/dashboard";
 import { parseReminderCenter } from "@/lib/reminderCenter";
 import AuditLogView from "./AuditLogView";
 import { parseAuditLog } from "@/lib/auditLog";
+import type { OATodoItem } from "@/lib/oaTodo";
+import type { ManagedSkill } from "@/lib/skillManager";
 
 interface Props {
   section: AppSection;
@@ -43,6 +45,22 @@ interface Props {
   isRunning: boolean;
   onRun: () => void;
   onNavigate: (sectionId: string) => void;
+  oa: {
+    approvalStatus: string | null;
+    onApprove: (item: OATodoItem, comment: string) => void;
+    onReject: (item: OATodoItem, comment: string) => void;
+  };
+  mail: {
+    readStatus: string | null;
+    replyStatus: string | null;
+    replyingIds: ReadonlySet<number>;
+    hiddenIds: ReadonlySet<number>;
+    onMarkRead: (message: MailMessage) => void;
+    onOpenReply: (message: MailMessage) => void;
+  };
+  skills: {
+    onToggle: (skill: ManagedSkill) => void;
+  };
 }
 
 function displayValue(value: unknown): string {
@@ -62,6 +80,9 @@ export default function SkillDataView({
   isRunning,
   onRun,
   onNavigate,
+  oa,
+  mail,
+  skills,
 }: Props) {
   const loaded = section.skills
     .map((skill) => ({ skill, envelope: envelopes[skill] }))
@@ -79,7 +100,8 @@ export default function SkillDataView({
     envelopes["hongyi-business-overview"] as import("@/lib/contract").SkillEnvelope | null ?? null,
   );
   const oaTodo = parseOATodo(envelopes["oa-todo"] as import("@/lib/contract").SkillEnvelope | null ?? null);
-  const companyMail = parseCompanyMail(envelopes["company-mail"] as import("@/lib/contract").SkillEnvelope | null ?? null);
+  const parsedMail = parseCompanyMail(envelopes["company-mail"] as import("@/lib/contract").SkillEnvelope | null ?? null);
+  const companyMail = parsedMail === null ? null : hideMailMessages(parsedMail, mail.hiddenIds);
   const reminders = parseReminderCenter(envelopes["reminder-center"] as import("@/lib/contract").SkillEnvelope | null ?? null);
   const nativeCalendarResult = nativeCalendar;
   const dashboardSnapshot = buildDashboardSnapshot({
@@ -103,9 +125,9 @@ export default function SkillDataView({
         </div>
       )}
       {section.id === "dashboard" ? (
-        <DashboardView snapshot={dashboardSnapshot} onNavigate={onNavigate} />
+        <DashboardView snapshot={dashboardSnapshot} onNavigate={onNavigate} onOpenMailReply={mail.onOpenReply} />
       ) : section.id === "skills" ? (
-        <SkillManagerView result={skillManager} />
+        <SkillManagerView result={skillManager} onToggle={skills.onToggle} />
       ) : section.id === "calendar" ? (
         <NativeCalendarView result={nativeCalendar} />
       ) : section.id === "briefing" ? (
@@ -120,11 +142,24 @@ export default function SkillDataView({
       ) : section.id === "business" ? (
         <HongyiBusinessView snapshot={hongyiSnapshot} />
       ) : section.id === "oa-todo" ? (
-        <OATodoView result={oaTodo} />
+        <OATodoView
+          result={oaTodo}
+          approvalStatus={oa.approvalStatus}
+          onApprove={oa.onApprove}
+          onReject={oa.onReject}
+        />
       ) : section.id === "funds" ? (
         <ExpenseTodoView result={oaTodo} />
       ) : section.id === "mail" ? (
-        <MailView result={companyMail} />
+        <MailView
+          result={companyMail}
+          readStatus={mail.readStatus}
+          replyStatus={mail.replyStatus}
+          replyingIds={mail.replyingIds}
+          hiddenIds={mail.hiddenIds}
+          onMarkRead={mail.onMarkRead}
+          onOpenReply={mail.onOpenReply}
+        />
       ) : section.id === "audit" ? (
         <AuditLogView
           result={{

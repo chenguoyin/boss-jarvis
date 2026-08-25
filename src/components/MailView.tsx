@@ -1,9 +1,15 @@
 import { useState } from "react";
-import { FileText, Lightbulb, MailOpen, X } from "lucide-react";
+import { FileText, Lightbulb, MailOpen, Reply, X } from "lucide-react";
 import { mailLevelTitle, type MailLevel, type MailMessage, type MailResult } from "@/lib/mail";
 
 interface Props {
   result: MailResult | null;
+  readStatus: string | null;
+  replyStatus: string | null;
+  replyingIds: ReadonlySet<number>;
+  hiddenIds: ReadonlySet<number>;
+  onMarkRead: (message: MailMessage) => void;
+  onOpenReply: (message: MailMessage) => void;
 }
 
 function LevelBadge({ level }: { level: MailLevel }) {
@@ -14,7 +20,19 @@ function LevelBadge({ level }: { level: MailLevel }) {
   );
 }
 
-function DetailSheet({ message, onClose }: { message: MailMessage; onClose: () => void }) {
+function DetailSheet({
+  message,
+  replyStatus,
+  isReplying,
+  onClose,
+  onOpenReply,
+}: {
+  message: MailMessage;
+  replyStatus: string | null;
+  isReplying: boolean;
+  onClose: () => void;
+  onOpenReply: (message: MailMessage) => void;
+}) {
   return (
     <div className="jv-sheet-backdrop" onClick={onClose}>
       <div className="jv-sheet jv-mail-sheet" onClick={(event) => event.stopPropagation()}>
@@ -51,14 +69,38 @@ function DetailSheet({ message, onClose }: { message: MailMessage; onClose: () =
             </div>
             <div className="jv-body jv-sheet-text">{message.replyBasis === "" ? "未获取" : message.replyBasis}</div>
           </section>
+          {replyStatus !== null && (
+            <div className="jv-caption jv-mail-action-status">{replyStatus}</div>
+          )}
+        </div>
+        <div className="jv-mail-action-bar">
+          <button
+            type="button"
+            className="jv-control jv-mail-reply-button"
+            title="在邮件客户端打开回复草稿，由您点击发送"
+            disabled={isReplying}
+            onClick={() => onOpenReply(message)}
+          >
+            <Reply size={15} strokeWidth={2} />
+            {isReplying ? "正在生成草稿..." : "回复"}
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
-export default function MailView({ result }: Props) {
+export default function MailView({
+  result,
+  readStatus,
+  replyStatus,
+  replyingIds,
+  hiddenIds,
+  onMarkRead,
+  onOpenReply,
+}: Props) {
   const [selected, setSelected] = useState<MailMessage | null>(null);
+  const hiddenCount = hiddenIds.size;
 
   if (result === null) {
     return (
@@ -81,10 +123,16 @@ export default function MailView({ result }: Props) {
           <div className="jv-title">邮件</div>
           <div className="jv-caption jv-muted">
             未读 {result.count} 封 · 需回复 {result.needsReplyCount} 封 · 来源：macOS Mail · 采集 {result.fetchedAt}
+            {hiddenCount > 0 ? ` · 本次已同步已读 ${hiddenCount} 封` : ""}
           </div>
         </div>
         <span className="jv-caption jv-mail-hint">回复直接打开邮件客户端</span>
       </div>
+      {(readStatus !== null || replyStatus !== null) && (
+        <div className="jv-caption jv-mail-page-status">
+          {readStatus ?? replyStatus}
+        </div>
+      )}
       {result.items.length === 0 ? (
         <div className="jv-body jv-muted jv-mail-empty">当前没有未读邮件</div>
       ) : (
@@ -102,8 +150,11 @@ export default function MailView({ result }: Props) {
               type="button"
               key={message.id}
               className="jv-mail-row jv-mail-row-body"
-              title="查看邮件详情"
-              onClick={() => setSelected(message)}
+              title="查看详情并同步为已读"
+              onClick={() => {
+                setSelected(message);
+                onMarkRead(message);
+              }}
             >
               <span className="jv-caption jv-mail-index">{index + 1}</span>
               <span className="jv-mail-main">
@@ -123,7 +174,15 @@ export default function MailView({ result }: Props) {
           ))}
         </div>
       )}
-      {selected && <DetailSheet message={selected} onClose={() => setSelected(null)} />}
+      {selected && (
+        <DetailSheet
+          message={selected}
+          replyStatus={replyStatus}
+          isReplying={replyingIds.has(selected.id)}
+          onClose={() => setSelected(null)}
+          onOpenReply={onOpenReply}
+        />
+      )}
     </div>
   );
 }

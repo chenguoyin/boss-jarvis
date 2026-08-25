@@ -12,6 +12,7 @@ import type { DashboardSnapshot } from "@/lib/dashboard";
 interface Props {
   snapshot: DashboardSnapshot;
   onNavigate: (sectionId: string) => void;
+  onOpenMailReply: (message: DashboardSnapshot["mailItems"][number]) => void;
 }
 
 function Panel({
@@ -62,7 +63,7 @@ function PositiveState({ title, detail }: { title: string; detail: string }) {
   );
 }
 
-export default function DashboardView({ snapshot, onNavigate }: Props) {
+export default function DashboardView({ snapshot, onNavigate, onOpenMailReply }: Props) {
   const { headline } = snapshot;
   return (
     <div className="jv-home">
@@ -206,7 +207,12 @@ export default function DashboardView({ snapshot, onNavigate }: Props) {
                   <div className="jv-caption jv-muted">{message.sender === "" ? "未获取" : message.sender} · {message.displayTime}</div>
                   {message.replyBasis !== "" && <div className="jv-caption jv-faint">{message.replyBasis}</div>}
                 </div>
-                <button type="button" className="jv-control jv-home-mail-reply" title="在邮件客户端打开回复草稿，不代发">
+                <button
+                  type="button"
+                  className="jv-control jv-home-mail-reply"
+                  title="在邮件客户端打开回复草稿，不代发"
+                  onClick={() => onOpenMailReply(message)}
+                >
                   回复
                 </button>
               </div>
