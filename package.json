@@ -10,7 +10,8 @@
     "tauri": "tauri",
     "lint": "eslint src --ext .ts,.tsx",
     "check:design": "node scripts/check-design-tokens.mjs",
-    "check:shell": "node scripts/check-shell-layout.mjs"
+    "check:shell": "node scripts/check-shell-layout.mjs",
+    "check:icon": "node scripts/check-icon-alpha.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.11.1",

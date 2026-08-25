@@ -49,7 +49,7 @@ SwiftUI 版仅在 `legacy/` 保留为迁移期黄金参照，1:1 验收通过后
 ## 应用图标
 
 - 所有展示的应用图标一律使用 macOS 圆角矩形版本（连续圆角，半径约边长 22.37%，透明背景），不要用方角版。
-- 当前壳内引用 `src/assets/brand-icon.png`；图标源文件与再生成流程见 `docs/icon/`。
+- 当前壳内引用 `src/assets/brand-icon.png`；图标源文件与再生成流程见 `legacy/docs/icon/`。
 
 ## 日期时间显示格式（必须遵守）
 
