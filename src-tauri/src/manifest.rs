@@ -90,7 +90,53 @@ pub fn load() -> Manifest {
             panic!("平台 Skill {} 缺少 macos/windows 配置", id);
         }
     }
+    validate_scripts_exist(&manifest);
     manifest
+}
+
+/// 清单声明的脚本必须真实存在；缺失立即失败，避免取数/写操作静默变成"未找到执行脚本"。
+fn validate_scripts_exist(manifest: &Manifest) {
+    let root = manifest.skills_root();
+    let mut missing: Vec<String> = Vec::new();
+    for (id, entry) in &manifest.skills {
+        if let Some(fetch) = entry.fetch.as_ref().filter(|s| !s.is_empty()) {
+            if !root.join(fetch).is_file() {
+                missing.push(format!("{} fetch {}", id, fetch));
+            }
+        }
+        for (action, script) in &entry.actions {
+            if !root.join(script).is_file() {
+                missing.push(format!("{} action {} {}", id, action, script));
+            }
+        }
+        if let Some(spec) = entry.macos.as_ref() {
+            if let Some(fetch) = spec.fetch.as_ref().filter(|s| !s.is_empty()) {
+                if !root.join(fetch).is_file() {
+                    missing.push(format!("{} macos fetch {}", id, fetch));
+                }
+            }
+            for (action, script) in &spec.actions {
+                if !root.join(script).is_file() {
+                    missing.push(format!("{} macos action {} {}", id, action, script));
+                }
+            }
+        }
+        if let Some(spec) = entry.windows.as_ref() {
+            if let Some(fetch) = spec.fetch.as_ref().filter(|s| !s.is_empty()) {
+                if !root.join(fetch).is_file() {
+                    missing.push(format!("{} windows fetch {}", id, fetch));
+                }
+            }
+            for (action, script) in &spec.actions {
+                if !root.join(script).is_file() {
+                    missing.push(format!("{} windows action {} {}", id, action, script));
+                }
+            }
+        }
+    }
+    if !missing.is_empty() {
+        panic!("skills/manifest.json 声明的脚本缺失: {}", missing.join("; "));
+    }
 }
 
 impl Manifest {

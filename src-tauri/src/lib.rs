@@ -36,6 +36,10 @@ pub fn read_weekly_summary_archive_for_integration(date: String) -> Option<Strin
     read_weekly_summary_archive(date)
 }
 
+pub fn toggle_skill_for_integration(skill_id: &str, enable: bool) -> command_runtime::CommandOutcome {
+    command_runtime::toggle_skill(skill_id, enable)
+}
+
 #[tauri::command]
 fn data_dir() -> String {
     skill_runtime::data_dir().to_string_lossy().into_owned()

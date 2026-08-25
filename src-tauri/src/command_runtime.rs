@@ -117,8 +117,11 @@ fn record_audit(payload: serde_json::Value) {
         command.env(key, value);
     }
     if let Ok(mut child) = command.spawn() {
-        if let Some(stdin) = child.stdin.as_mut() {
-            let _ = stdin.write_all(payload.to_string().as_bytes());
+        {
+            let stdin = child.stdin.take();
+            if let Some(mut stdin) = stdin {
+                let _ = stdin.write_all(payload.to_string().as_bytes());
+            }
         }
         let _ = child.wait();
     }
@@ -202,9 +205,9 @@ pub fn toggle_skill(skill_id: &str, enable: bool) -> CommandOutcome {
     let (ok, _stdout, _stderr, error) =
         run_skill_action("skill-manager", "manage", &[verb.to_string(), skill_id.to_string()]);
     let summary = if ok {
-        format!("Skill 已{}", if enable { "启用" } else { "停用" })
+        format!("Skill 已{}：{skill_id}", if enable { "启用" } else { "停用" })
     } else {
-        format!("Skill {verb} 失败：{error}")
+        format!("Skill {skill_id} {verb} 失败：{error}")
     };
     record_audit(audit_payload(
         "skill-manager",

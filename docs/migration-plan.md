@@ -99,6 +99,15 @@ macOS 与 Windows 共用同一套前端、Rust 核心与设计系统；平台差
   密码与 API Key 默认遮蔽，凭证不进源码。
 - [x] 设计令牌补齐 `--jv-on-accent`（亮暗各一）用于蓝底主按钮文字，
   避免暗色主题对比度回退。
+- [x] 实机验证与修复（Tauri 窗口 + 集成测试）：
+  发现 manifest actions 路径缺少 skill 子目录前缀，导致全部写操作
+  解析到不存在的脚本（`~/.codex/skills/record-audit.cjs`）。已统一补齐
+  为 `<skill>/<script>.cjs`；同时修复 `record_audit` stdin 未关闭导致
+  子进程等 EOF 的死锁风险；`toggle_skill` 失败摘要补目标 Skill 标识。
+  新增集成测试 `toggle_skill_failure_writes_audit_trail`（失败路径也必须
+  写审计留痕），并在 `manifest.rs` 加载时校验声明脚本存在，缺失立即报错。
+  主题/字号持久化经 Playwright 验证：三主题、localStorage、刷新保持、
+  恢复默认全部通过；3 主题 × 11 分区共 33 张截图无空白。
 
 ### Phase 5：收敛与退役
 - macOS Tauri 版 1:1 验收通过 → 删除 legacy → 单代码库定稿

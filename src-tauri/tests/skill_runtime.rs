@@ -35,3 +35,34 @@ fn weekly_summary_archive_commands_work() {
     let parsed: serde_json::Value = serde_json::from_str(&text).expect("周报存档应为 JSON");
     assert_eq!(parsed["reportDate"], *latest);
 }
+
+#[test]
+#[ignore = "依赖本机 ~/.codex/skills 与审计目录，按需手动验证"]
+fn toggle_skill_failure_writes_audit_trail() {
+    let date = chrono_like_date();
+    let audit_path = std::env::var("HOME")
+        .map(|home| std::path::PathBuf::from(home).join(".codex/workbench-audit").join(&date).join("audit.jsonl"))
+        .unwrap();
+    let before = std::fs::read_to_string(&audit_path).unwrap_or_default().lines().count();
+
+    let outcome = boss_jarvis_lib::toggle_skill_for_integration("__nonexistent_skill__", false);
+    assert!(!outcome.ok, "不存在的 Skill 应执行失败");
+    assert!(outcome.summary.contains("__nonexistent_skill__"), "失败摘要应包含目标 Skill: {}", outcome.summary);
+
+    let after_text = std::fs::read_to_string(&audit_path).expect("审计文件应已写入");
+    let after = after_text.lines().count();
+    assert!(after > before, "toggle_skill 失败也应写入审计留痕");
+    let last = after_text.lines().last().expect("应存在审计记录");
+    let parsed: serde_json::Value = serde_json::from_str(last).expect("审计行应为 JSON");
+    assert_eq!(parsed["skill"], "skill-manager");
+    assert_eq!(parsed["status"], "failed");
+    assert_eq!(parsed["target"]["title"], "__nonexistent_skill__");
+}
+
+fn chrono_like_date() -> String {
+    let output = std::process::Command::new("date")
+        .arg("+%Y-%m-%d")
+        .output()
+        .expect("date 命令应可用");
+    String::from_utf8(output.stdout).expect("date 输出应为 UTF-8").trim().to_string()
+}

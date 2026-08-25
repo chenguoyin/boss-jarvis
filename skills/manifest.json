@@ -7,14 +7,14 @@
       "kind": "common",
       "runner": "node",
       "fetch": "oa-todo/fetch-todo-with-analysis.cjs",
-      "actions": { "approve": "approve-todo.cjs" }
+      "actions": { "approve": "oa-todo/approve-todo.cjs" }
     },
     "spm-todo": {
       "displayName": "业务协作待办",
       "kind": "common",
       "runner": "node",
       "fetch": "spm-todo/fetch-spm-todo.cjs",
-      "actions": { "approve": "approve-todo.cjs" }
+      "actions": { "approve": "spm-todo/approve-todo.cjs" }
     },
     "hongyi-today-metrics": {
       "displayName": "虹翼今日专项",
@@ -39,7 +39,7 @@
       "kind": "common",
       "runner": "node",
       "fetch": "daily-briefing/run-briefing.cjs",
-      "actions": { "schedule": "manage-schedule.cjs" }
+      "actions": { "schedule": "daily-briefing/manage-schedule.cjs" }
     },
     "skill-manager": {
       "displayName": "Skill 管理",
@@ -47,7 +47,7 @@
       "runner": "node",
       "fetch": "skill-manager/manage-skills.cjs",
       "fetchArgs": ["list"],
-      "actions": { "manage": "manage-skills.cjs" }
+      "actions": { "manage": "skill-manager/manage-skills.cjs" }
     },
     "weekly-summary": {
       "displayName": "每周总结",
@@ -67,13 +67,13 @@
       "kind": "common",
       "runner": "node",
       "fetch": null,
-      "actions": { "record": "record-audit.cjs" }
+      "actions": { "record": "audit-log/record-audit.cjs" }
     },
     "ai-chat-dispatcher": {
       "displayName": "AI 对话调度",
       "kind": "common",
       "runner": "node",
-      "actions": { "route": "route-command.cjs" }
+      "actions": { "route": "ai-chat-dispatcher/route-command.cjs" }
     },
     "company-mail": {
       "displayName": "邮件",
@@ -82,10 +82,10 @@
         "runner": "node",
         "fetch": "company-mail/fetch-unread-mail.cjs",
         "actions": {
-          "mark-read": "mark-mail-read.cjs",
-          "generate-reply": "generate-reply-draft.cjs",
-          "prepare-reply": "prepare-reply.cjs",
-          "open-reply": "open-confirmed-reply.cjs"
+          "mark-read": "company-mail/mark-mail-read.cjs",
+          "generate-reply": "company-mail/generate-reply-draft.cjs",
+          "prepare-reply": "company-mail/prepare-reply.cjs",
+          "open-reply": "company-mail/open-confirmed-reply.cjs"
         }
       },
       "windows": {
