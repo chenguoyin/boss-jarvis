@@ -17,6 +17,11 @@ import ExpenseTodoView from "./ExpenseTodoView";
 import { parseOATodo } from "@/lib/oaTodo";
 import MailView from "./MailView";
 import { parseCompanyMail } from "@/lib/mail";
+import DashboardView from "./DashboardView";
+import { buildDashboardSnapshot } from "@/lib/dashboard";
+import { parseReminderCenter } from "@/lib/reminderCenter";
+import AuditLogView from "./AuditLogView";
+import { parseAuditLog } from "@/lib/auditLog";
 
 interface Props {
   section: AppSection;
@@ -29,8 +34,15 @@ interface Props {
     selectedDate: string;
     onSelectDate: (date: string) => void;
   };
+  audit: {
+    dates: string[];
+    selectedDate: string;
+    jsonl: string | null;
+    onSelectDate: (date: string) => void;
+  };
   isRunning: boolean;
   onRun: () => void;
+  onNavigate: (sectionId: string) => void;
 }
 
 function displayValue(value: unknown): string {
@@ -46,8 +58,10 @@ export default function SkillDataView({
   failures,
   briefingEnvelope,
   weekly,
+  audit,
   isRunning,
   onRun,
+  onNavigate,
 }: Props) {
   const loaded = section.skills
     .map((skill) => ({ skill, envelope: envelopes[skill] }))
@@ -66,6 +80,16 @@ export default function SkillDataView({
   );
   const oaTodo = parseOATodo(envelopes["oa-todo"] as import("@/lib/contract").SkillEnvelope | null ?? null);
   const companyMail = parseCompanyMail(envelopes["company-mail"] as import("@/lib/contract").SkillEnvelope | null ?? null);
+  const reminders = parseReminderCenter(envelopes["reminder-center"] as import("@/lib/contract").SkillEnvelope | null ?? null);
+  const nativeCalendarResult = nativeCalendar;
+  const dashboardSnapshot = buildDashboardSnapshot({
+    reminders,
+    oaTodo,
+    mail: companyMail,
+    calendar: nativeCalendarResult,
+    briefing,
+    hongyi: hongyiSnapshot,
+  });
 
   return (
     <div className="jv-placeholder">
@@ -78,7 +102,9 @@ export default function SkillDataView({
           ))}
         </div>
       )}
-      {section.id === "skills" ? (
+      {section.id === "dashboard" ? (
+        <DashboardView snapshot={dashboardSnapshot} onNavigate={onNavigate} />
+      ) : section.id === "skills" ? (
         <SkillManagerView result={skillManager} />
       ) : section.id === "calendar" ? (
         <NativeCalendarView result={nativeCalendar} />
@@ -99,6 +125,17 @@ export default function SkillDataView({
         <ExpenseTodoView result={oaTodo} />
       ) : section.id === "mail" ? (
         <MailView result={companyMail} />
+      ) : section.id === "audit" ? (
+        <AuditLogView
+          result={{
+            dates: audit.dates,
+            selectedDate: audit.selectedDate,
+            entries: parseAuditLog(audit.jsonl),
+            onSelectDate: audit.onSelectDate,
+          }}
+          isRunning={isRunning}
+          onRefresh={onRun}
+        />
       ) : (
         <>
           <SquareDashed size={40} strokeWidth={1.5} />

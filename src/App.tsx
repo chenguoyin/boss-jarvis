@@ -7,7 +7,9 @@ import { SquareDashed } from "lucide-react";
 import { sectionById } from "./lib/sections";
 import { useSkillData } from "./hooks/useSkillData";
 import {
+  listAuditLogDates,
   listWeeklySummaryDates,
+  readAuditLog,
   readDailyBriefingReport,
   readSkillData,
   readWeeklySummaryArchive,
@@ -34,6 +36,9 @@ export default function App() {
   const [weeklyRaw, setWeeklyRaw] = useState<unknown>(null);
   const [weeklyDates, setWeeklyDates] = useState<string[]>([]);
   const [weeklyDate, setWeeklyDate] = useState("");
+  const [auditDates, setAuditDates] = useState<string[]>([]);
+  const [auditDate, setAuditDate] = useState("");
+  const [auditJsonl, setAuditJsonl] = useState<string | null>(null);
   const [reloadCount, setReloadCount] = useState(0);
 
   useEffect(() => {
@@ -57,6 +62,19 @@ export default function App() {
     }
     void readWeeklySummaryArchive(weeklyDate).then(setWeeklyRaw);
   }, [sectionId, weeklyDate, weeklyDates, reloadCount]);
+
+  useEffect(() => {
+    if (sectionId !== "audit") return;
+    void listAuditLogDates().then((dates) => {
+      setAuditDates(dates);
+      setAuditDate((current) => (current !== "" && dates.includes(current) ? current : (dates[0] ?? "")));
+    });
+  }, [sectionId, reloadCount]);
+
+  useEffect(() => {
+    if (sectionId !== "audit" || auditDate === "") return;
+    void readAuditLog(auditDate).then(setAuditJsonl);
+  }, [sectionId, auditDate, reloadCount]);
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-color-scheme: dark)");
@@ -114,10 +132,17 @@ export default function App() {
                 selectedDate: weeklyDate,
                 onSelectDate: setWeeklyDate,
               }}
+              audit={{
+                dates: auditDates,
+                selectedDate: auditDate,
+                jsonl: auditJsonl,
+                onSelectDate: setAuditDate,
+              }}
               isRunning={isReloading}
               onRun={() => {
                 void handleRefresh();
               }}
+              onNavigate={setSectionId}
             />
           ) : (
             <PlaceholderView

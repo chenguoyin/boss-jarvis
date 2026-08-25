@@ -68,6 +68,14 @@ macOS 与 Windows 共用同一套前端、Rust 核心与设计系统；平台差
   共用 oa-todo 契约解析（items[].analysis），风险级别 red/yellow/green 映射
   urgent/attention/normal；行点击详情弹层、计数不一致提示、发送人回退创建人、
   资金费用按智能财务/费控/资金关键字过滤。审批写操作待 Phase 4 接确认执行链。
+- [x] 驾驶舱聚合视图（只读）：`src/components/DashboardView.tsx` +
+  `src/lib/dashboard.ts` + `src/lib/reminderCenter.ts`。结论条与四枚状态胶囊、
+  Top3 待办提醒、OA/邮件/日历跨系统聚合行、风险提示与 AI 建议、待回复邮件、
+  虹翼经营速览五卡；聚合口径与 legacy 对齐，缺数据一律「未获取」不填 0。
+- [x] 审计日志视图（只读）：`src/components/AuditLogView.tsx` +
+  `src/lib/auditLog.ts`。Rust 命令 `audit_log_dates` / `read_audit_log` 只读
+  `~/.codex/workbench-audit/<date>/audit.jsonl`，按时间倒序渲染全链路留痕，
+  支持日期下拉切换与刷新。
 
 ### Phase 4：确认中心 / 审计 / 配置
 - 行为一致：OA 详情弹层点同意/不同意即确认直接执行并审计；Skill 启停/AI 写操作先进确认中心；邮件只标记已读/打开草稿，绝不自动发送

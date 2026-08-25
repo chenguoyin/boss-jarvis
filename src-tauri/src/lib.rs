@@ -94,6 +94,43 @@ fn read_weekly_summary_archive(date: String) -> Option<String> {
     std::fs::read_to_string(path).ok()
 }
 
+/// 审计留痕：~/.codex/workbench-audit/yyyy-MM-dd/audit.jsonl，只读。
+#[tauri::command]
+fn audit_log_dates() -> Vec<String> {
+    let root = match paths::home_dir() {
+        Some(home) => home.join(".codex").join("workbench-audit"),
+        None => return Vec::new(),
+    };
+    let Ok(entries) = std::fs::read_dir(root) else {
+        return Vec::new();
+    };
+    let mut dates: Vec<String> = entries
+        .filter_map(|entry| entry.ok())
+        .filter_map(|entry| entry.file_name().into_string().ok())
+        .filter(|name| {
+            name.len() == 10
+                && name.as_bytes().get(4) == Some(&b'-')
+                && name.as_bytes().get(7) == Some(&b'-')
+                && name.bytes().all(|byte| byte.is_ascii_digit() || byte == b'-')
+        })
+        .collect();
+    dates.sort_by(|a, b| b.cmp(a));
+    dates
+}
+
+#[tauri::command]
+fn read_audit_log(date: String) -> Option<String> {
+    if date.len() != 10 || !date.bytes().all(|byte| byte.is_ascii_digit() || byte == b'-') {
+        return None;
+    }
+    let path = paths::home_dir()?
+        .join(".codex")
+        .join("workbench-audit")
+        .join(&date)
+        .join("audit.jsonl");
+    std::fs::read_to_string(path).ok()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -104,7 +141,9 @@ pub fn run() {
             read_skill_data,
             read_daily_briefing_report,
             weekly_summary_dates,
-            read_weekly_summary_archive
+            read_weekly_summary_archive,
+            audit_log_dates,
+            read_audit_log
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

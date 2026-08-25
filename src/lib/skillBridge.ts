@@ -39,3 +39,11 @@ export async function readWeeklySummaryArchive(date: string): Promise<unknown> {
     return null;
   }
 }
+
+export async function listAuditLogDates(): Promise<string[]> {
+  return invoke<string[]>("audit_log_dates");
+}
+
+export async function readAuditLog(date: string): Promise<string | null> {
+  return invoke<string | null>("read_audit_log", { date });
+}
