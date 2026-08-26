@@ -221,6 +221,66 @@ pub fn toggle_skill(skill_id: &str, enable: bool) -> CommandOutcome {
     CommandOutcome { ok, summary }
 }
 
+/// Skill 安装：确认中心确认后执行；安装并启用，失败也写审计。
+pub fn install_skill(source: &str) -> CommandOutcome {
+    if source.trim().is_empty() {
+        return failure("skill-manager", "安装源目录未获取，无法安装。");
+    }
+    let (ok, stdout, _stderr, error) = run_skill_action(
+        "skill-manager",
+        "manage",
+        &["install".to_string(), source.to_string(), "--enable".to_string()],
+    );
+    let name = json_field(&stdout, "skill")
+        .and_then(|v| v.get("name").cloned())
+        .and_then(|v| v.as_str().map(String::from))
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| source.to_string());
+    let summary = if ok {
+        format!("Skill 已安装并启用：{name}")
+    } else {
+        format!("Skill 安装失败：{error}")
+    };
+    record_audit(audit_payload(
+        "skill-manager",
+        "install",
+        "write_pending",
+        if ok { "success" } else { "failed" },
+        source,
+        &summary,
+        if ok { "" } else { &error },
+    ));
+    CommandOutcome { ok, summary }
+}
+
+/// Skill 卸载：确认中心确认后执行；代码归档不删除，历史日志保留。
+pub fn uninstall_skill(skill_id: &str) -> CommandOutcome {
+    if skill_id.is_empty() {
+        return failure("skill-manager", "Skill 标识未获取，无法卸载。");
+    }
+    let (ok, stdout, _stderr, error) = run_skill_action(
+        "skill-manager",
+        "manage",
+        &["uninstall".to_string(), skill_id.to_string(), "--confirm".to_string()],
+    );
+    let archive = json_string(&stdout, "archiveDir").unwrap_or_else(|| "归档目录".to_string());
+    let summary = if ok {
+        format!("Skill 已卸载，代码归档至 {archive}")
+    } else {
+        format!("Skill 卸载失败：{error}")
+    };
+    record_audit(audit_payload(
+        "skill-manager",
+        "uninstall",
+        "write_pending",
+        if ok { "success" } else { "failed" },
+        skill_id,
+        &summary,
+        if ok { "" } else { &error },
+    ));
+    CommandOutcome { ok, summary }
+}
+
 /// 邮件标记已读：只操作该封邮件，不发送任何内容。
 pub fn mark_mail_read(message_id: i64) -> CommandOutcome {
     if message_id <= 0 {

@@ -1,4 +1,5 @@
 import type { SkillEnvelope } from "./contract";
+import { formatDateTime } from "./datetime";
 
 export interface HongyiTodayMetrics {
   projectsCount: number;
@@ -73,13 +74,7 @@ function issuesFrom(value: unknown): string[] {
   return Array.from(new Set(issues)).sort();
 }
 
-function fullTime(iso: unknown): string {
-  if (typeof iso !== "string" || iso === "") return "未获取";
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "未获取";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
-}
+const fullTime = formatDateTime;
 
 function hasTodayAnyData(today: HongyiTodayMetrics): boolean {
   return (

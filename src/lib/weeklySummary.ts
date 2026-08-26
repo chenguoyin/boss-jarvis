@@ -1,3 +1,5 @@
+import { formatDateTime } from "./datetime";
+
 export interface WeeklySummaryCategory {
   name: string;
   count: number;
@@ -44,13 +46,10 @@ function numberOr(value: unknown, fallback: number): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 
-function fullTime(iso: unknown): string {
-  if (typeof iso !== "string" || iso === "") return "未知时间";
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "未知时间";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
-}
+const fullTime = (iso: unknown): string => {
+  const formatted = formatDateTime(iso);
+  return formatted === "未获取" ? "未知时间" : formatted;
+};
 
 export function parseWeeklySummary(raw: unknown): WeeklySummary | null {
   const json = record(raw);

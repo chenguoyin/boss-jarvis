@@ -15,6 +15,10 @@ export function toggleMaximize(): Promise<void> {
   return invoke<void>("toggle_maximize");
 }
 
+export async function selectSkillDirectory(): Promise<string | null> {
+  return invoke<string | null>("select_skill_directory");
+}
+
 export async function fetchSkills(skills: string[]): Promise<FetchOutcome[]> {
   if (skills.length === 0) return [];
   return invoke<FetchOutcome[]>("fetch_skills", { skills });
@@ -72,6 +76,14 @@ export function approveTodo(input: {
 
 export function toggleSkill(skillId: string, enable: boolean): Promise<CommandOutcome> {
   return invoke<CommandOutcome>("toggle_skill", { skillId, enable });
+}
+
+export function installSkill(source: string): Promise<CommandOutcome> {
+  return invoke<CommandOutcome>("install_skill", { source });
+}
+
+export function uninstallSkill(skillId: string): Promise<CommandOutcome> {
+  return invoke<CommandOutcome>("uninstall_skill", { skillId });
 }
 
 export function markMailRead(messageId: number): Promise<CommandOutcome> {

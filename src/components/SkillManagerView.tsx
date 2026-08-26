@@ -4,14 +4,23 @@ import {
   type ManagedSkill,
   type SkillManagerResult,
 } from "@/lib/skillManager";
-import { Power } from "lucide-react";
+import { FolderPlus, Power, Trash2 } from "lucide-react";
 
 interface Props {
   result: SkillManagerResult | null;
   onToggle: (skill: ManagedSkill) => void;
+  onInstall: () => void;
+  onUninstall: (skill: ManagedSkill) => void;
+  pendingSkillIds: ReadonlySet<string>;
 }
 
-export default function SkillManagerView({ result, onToggle }: Props) {
+export default function SkillManagerView({
+  result,
+  onToggle,
+  onInstall,
+  onUninstall,
+  pendingSkillIds,
+}: Props) {
   if (result === null) {
     return (
       <div className="jv-card">
@@ -36,6 +45,10 @@ export default function SkillManagerView({ result, onToggle }: Props) {
         </div>
         <span className="jv-pill jv-pill-attention jv-caption">安装、卸载需确认后执行</span>
       </div>
+      <button type="button" className="jv-skill-install" onClick={onInstall}>
+        <FolderPlus size={15} strokeWidth={2} />
+        选择目录并安装
+      </button>
 
       {result.items.length === 0 ? (
         <div className="jv-body jv-muted jv-empty">未注册任何 Skill</div>
@@ -64,15 +77,29 @@ export default function SkillManagerView({ result, onToggle }: Props) {
                 {skill.runtimeStatus === "" ? "未获取" : skill.runtimeStatus}
               </span>
               <span className="jv-skill-col-actions">
-                <button
-                  type="button"
-                  className="jv-caption jv-skill-toggle"
-                  title={(skill.enabledOnDisk ? "停用：" : "启用：") + skill.name + "，进入确认中心后执行"}
-                  onClick={() => onToggle(skill)}
-                >
-                  <Power size={15} strokeWidth={2} />
-                  {skill.enabledOnDisk ? "停用" : "启用"}
-                </button>
+                {pendingSkillIds.has(skill.id) ? (
+                  <span className="jv-caption jv-muted">已入队</span>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className="jv-caption jv-skill-toggle"
+                      title={(skill.enabledOnDisk ? "停用：" : "启用：") + skill.name + "，进入确认中心后执行"}
+                      onClick={() => onToggle(skill)}
+                    >
+                      <Power size={15} strokeWidth={2} />
+                      {skill.enabledOnDisk ? "停用" : "启用"}
+                    </button>
+                    <button
+                      type="button"
+                      className="jv-caption jv-skill-uninstall"
+                      title={"拟卸载：" + skill.name + "，进入确认中心，确认后代码归档不删除"}
+                      onClick={() => onUninstall(skill)}
+                    >
+                      <Trash2 size={15} strokeWidth={2} />
+                    </button>
+                  </>
+                )}
               </span>
             </div>
           ))}

@@ -62,6 +62,9 @@ interface Props {
   };
   skills: {
     onToggle: (skill: ManagedSkill) => void;
+    onInstall: () => void;
+    onUninstall: (skill: ManagedSkill) => void;
+    pendingSkillIds: ReadonlySet<string>;
   };
   homeModules: HomeModuleConfig;
 }
@@ -147,10 +150,17 @@ export default function SkillDataView({
           snapshot={dashboardSnapshot}
           onNavigate={onNavigate}
           onOpenMailReply={mail.onOpenReply}
+          replyingMailIds={mail.replyingIds}
           homeModules={homeModules}
         />
       ) : section.id === "skills" ? (
-        <SkillManagerView result={skillManager} onToggle={skills.onToggle} />
+        <SkillManagerView
+          result={skillManager}
+          onToggle={skills.onToggle}
+          onInstall={skills.onInstall}
+          onUninstall={skills.onUninstall}
+          pendingSkillIds={skills.pendingSkillIds}
+        />
       ) : section.id === "calendar" ? (
         <NativeCalendarView result={nativeCalendar} />
       ) : section.id === "briefing" ? (

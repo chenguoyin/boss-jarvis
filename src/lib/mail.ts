@@ -1,4 +1,5 @@
 import type { SkillEnvelope } from "./contract";
+import { formatDateTime } from "./datetime";
 
 export type MailLevel = "urgent" | "attention" | "normal" | "missing";
 
@@ -48,14 +49,7 @@ function text(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function fullTime(iso: string): string {
-  if (iso === "") return "未获取";
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "未获取";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return date.getFullYear() + "-" + pad(date.getMonth() + 1) + "-" + pad(date.getDate())
-    + " " + pad(date.getHours()) + ":" + pad(date.getMinutes()) + ":" + pad(date.getSeconds());
-}
+const fullTime = formatDateTime;
 
 function mailLevel(value: unknown): MailLevel {
   const normalized = text(value).toLowerCase();

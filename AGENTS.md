@@ -35,7 +35,7 @@ SwiftUI 版仅在 `legacy/` 保留为迁移期黄金参照，1:1 验收通过后
 - 通用 Skill（oa-todo / spm-todo / hongyi-* / reminder-center / daily-briefing / skill-manager / audit-log …）一套脚本双端复用；Windows 上 Playwright 用 `channel: 'msedge'`（Phase T）。
 - 平台专用 Skill（邮件、日历）在 manifest 里按 macos/windows 分叉，Windows 实现属 Phase T。
 - 数据流：Skill → JSON → `~/.boss-jarvis/data/`（Windows `%USERPROFILE%\.boss-jarvis\data\`）→ 壳层只读契约 → UI。
-- Rust 写命令在 `src-tauri/src/command_runtime.rs`：OA/SPM 审批直达、Skill 启停、邮件标记已读/打开草稿、skill-env 读写；全部经 audit-log Skill 留痕。
+- Rust 写命令在 `src-tauri/src/command_runtime.rs`：OA/SPM 审批直达、Skill 启停/安装/卸载、邮件标记已读/打开草稿、skill-env 读写；全部经 audit-log Skill 留痕。
 
 ## 安全红线
 

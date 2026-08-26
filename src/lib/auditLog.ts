@@ -1,3 +1,5 @@
+import { formatDateTime } from "./datetime";
+
 export interface AuditLogEntry {
   auditId: string;
   timestampText: string;
@@ -30,13 +32,10 @@ function text(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function fullTime(iso: string): string {
-  if (iso === "") return "未获取";
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return iso;
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
-}
+const fullTime = (iso: string): string => {
+  const formatted = formatDateTime(iso);
+  return formatted === "未获取" && iso !== "" ? iso : formatted;
+};
 
 // JSONL 只读解析；单行坏行跳过，不阻塞其余留痕展示。
 export function parseAuditLog(jsonl: string | null): AuditLogEntry[] {

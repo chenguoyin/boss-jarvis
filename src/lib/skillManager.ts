@@ -1,4 +1,5 @@
 import { isMissing, type SkillEnvelope } from "./contract";
+import { formatDateTime } from "./datetime";
 
 export interface ManagedSkill {
   id: string;
@@ -63,6 +64,8 @@ export function parseSkillManager(envelope: SkillEnvelope): SkillManagerResult {
     count: typeof envelope.count === "number" ? envelope.count : items.length,
     enabledCount: items.filter((item) => item.lifecycleStatus === "enabled").length,
     items,
-    fetchedAt: displayOrMissing(envelope.fetchedAt),
+    fetchedAt: typeof envelope.fetchedAt === "string" && envelope.fetchedAt !== ""
+      ? formatDateTime(envelope.fetchedAt)
+      : "未获取",
   };
 }

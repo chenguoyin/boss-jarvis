@@ -15,9 +15,9 @@
         "label": "main",
         "title": "Boss Jarvis",
         "width": 1280,
-        "height": 800,
+        "height": 900,
         "minWidth": 960,
-        "minHeight": 640,
+        "minHeight": 760,
         "resizable": true
       }
     ],

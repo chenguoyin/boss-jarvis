@@ -1,4 +1,5 @@
 import type { SkillEnvelope } from "./contract";
+import { formatClock, formatDateTime } from "./datetime";
 
 export type CalendarLevel = "normal" | "attention" | "missing";
 
@@ -56,18 +57,11 @@ function strList(value: unknown): string[] {
 }
 
 export function shortTime(iso: string): string {
-  if (!iso) return "未获取";
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "未获取";
-  return date.toLocaleTimeString("zh-CN", { hour12: false, hour: "2-digit", minute: "2-digit" });
+  return formatClock(iso);
 }
 
 export function fullTime(iso: string): string {
-  if (!iso) return "未获取";
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "未获取";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+  return formatDateTime(iso);
 }
 
 export function timeRange(start: string, end: string): string {

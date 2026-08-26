@@ -1,4 +1,5 @@
 import type { SkillEnvelope } from "./contract";
+import { formatDateTime, nowDateTimeText } from "./datetime";
 import { llmChat, readSkillData, readSkillEnv } from "./skillBridge";
 import { parseOATodo } from "./oaTodo";
 import { parseCompanyMail } from "./mail";
@@ -51,20 +52,13 @@ const SNAPSHOT_SKILLS = [
   "hongyi-business-overview",
 ];
 
-function pad(n: number): string {
-  return String(n).padStart(2, "0");
-}
-
 function nowText(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  return nowDateTimeText();
 }
 
 function fullTime(iso: string): string {
   if (iso === "" || iso === "未获取") return "未获取";
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "未获取";
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+  return formatDateTime(iso);
 }
 
 // 与 legacy assistantContextSnapshot 对齐：压缩工作台已加载数据为文字快照。

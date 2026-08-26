@@ -12,7 +12,7 @@
 }
 
 .jv-nav-top-spacer {
-  height: 24px;
+  height: 14px;
   flex-shrink: 0;
 }
 
@@ -27,7 +27,7 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 8px 0;
+  padding: 2px 0;
   align-items: center;
 }
 
@@ -131,7 +131,7 @@
   background: var(--jv-card);
   border: 1px solid var(--jv-line);
   box-shadow: var(--jv-shadow-icon);
-  margin-bottom: 18px;
+  margin-bottom: 12px;
   flex-shrink: 0;
 }
 
@@ -1563,6 +1563,41 @@
   border: 1px solid color-mix(in srgb, var(--jv-blue) 24%, transparent);
   border-radius: 8px;
   cursor: pointer;
+}
+
+.jv-skill-install {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  margin-top: 14px;
+  padding: 0 12px;
+  color: var(--jv-green);
+  background: color-mix(in srgb, var(--jv-green) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--jv-green) 26%, transparent);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.jv-skill-install:hover {
+  background: color-mix(in srgb, var(--jv-green) 16%, transparent);
+}
+
+.jv-skill-uninstall {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  color: var(--jv-red);
+  background: color-mix(in srgb, var(--jv-red) 10%, transparent);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.jv-skill-uninstall:hover {
+  background: color-mix(in srgb, var(--jv-red) 16%, transparent);
 }
 
 .jv-settings-card {

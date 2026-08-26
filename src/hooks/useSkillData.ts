@@ -11,7 +11,7 @@ export interface SkillFailure {
   error: string;
 }
 
-export function useSkillData(sectionSkills: string[]) {
+export function useSkillData(sectionSkills: string[], allSkills: string[]) {
   const [envelopes, setEnvelopes] = useState<Record<string, SkillEnvelope | null>>({});
   const [failures, setFailures] = useState<SkillFailure[]>([]);
   const [isReloading, setIsReloading] = useState(false);
@@ -21,12 +21,18 @@ export function useSkillData(sectionSkills: string[]) {
     sectionSkillsRef.current = sectionSkills;
   }, [sectionSkills]);
 
+  // 合并而非替换：分区切换时保留其它分区的本地缓存，导航徽标不闪断。
   const loadLocal = useCallback(async (skills: string[]) => {
     const entries = await Promise.all(
       skills.map(async (skill) => [skill, await readSkillData(skill)] as const),
     );
-    setEnvelopes(Object.fromEntries(entries));
+    setEnvelopes((current) => ({ ...current, ...Object.fromEntries(entries) }));
   }, []);
+
+  // 启动只读本地契约 JSON，不触发任何 Skill 执行，首屏不转圈。
+  useEffect(() => {
+    void loadLocal(allSkills);
+  }, [allSkills, loadLocal]);
 
   useEffect(() => {
     void loadLocal(sectionSkills);

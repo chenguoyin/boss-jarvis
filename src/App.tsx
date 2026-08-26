@@ -16,19 +16,24 @@ import {
   approveTodo,
   listAuditLogDates,
   listWeeklySummaryDates,
+  installSkill,
   markMailRead,
   openMailReply,
   readAuditLog,
   readDailyBriefingReport,
   readSkillData,
   readWeeklySummaryArchive,
+  selectSkillDirectory,
   toggleSkill,
   toggleMaximize,
+  uninstallSkill,
 } from "./lib/skillBridge";
 import { parseOATodo } from "./lib/oaTodo";
 import type { AssistantRuntime } from "./lib/assistantChat";
 import {
+  createSkillInstallAction,
   createSkillToggleAction,
+  createSkillUninstallAction,
   pendingOnly,
   type PendingAction,
 } from "./lib/confirmationCenter";
@@ -60,10 +65,15 @@ import {
 
 export default function App() {
   const [sectionId, setSectionId] = useState("dashboard");
+  const appStartedAtRef = useRef(Date.now());
   const [theme, setThemeState] = useState<Theme>(loadTheme);
   const section = sectionById(sectionId);
   const sectionSkills = useMemo(() => section?.skills ?? [], [section]);
-  const { envelopes, failures, isReloading, activity, refresh, refreshAll } = useSkillData(sectionSkills);
+  const fetchableSkills = useMemo(
+    () => Array.from(new Set(appSections.flatMap((entry) => entry.skills))),
+    [],
+  );
+  const { envelopes, failures, isReloading, activity, refresh, refreshAll } = useSkillData(sectionSkills, fetchableSkills);
   const [briefingEnvelope, setBriefingEnvelope] = useState<SkillEnvelope | null>(null);
   const [weeklyRaw, setWeeklyRaw] = useState<unknown>(null);
   const [weeklyDates, setWeeklyDates] = useState<string[]>([]);
@@ -182,7 +192,8 @@ export default function App() {
       setNextAutoRefreshAt(null);
       return;
     }
-    const due = lastRefreshedAt === null ? Date.now() : lastRefreshedAt + autoRefreshInterval * 60_000;
+    // 首个自动刷新周期从启动后算起，启动瞬间只读本底 JSON，不跑 Skill。
+    const due = (lastRefreshedAt ?? appStartedAtRef.current) + autoRefreshInterval * 60_000;
     setNextAutoRefreshAt(due);
     const delay = Math.max(due - Date.now(), 0);
     const timer = window.setTimeout(() => {
@@ -243,7 +254,12 @@ export default function App() {
             ? `正在执行：${action.title}`
             : `正在执行第 ${offset + 1}/${pending.length} 项：${action.title} · 还剩 ${remaining} 条`,
         );
-        const outcome = await toggleSkill(action.skillId, action.enable);
+        const outcome =
+          action.kind === "skillInstall"
+            ? await installSkill(action.source)
+            : action.kind === "skillUninstall"
+              ? await uninstallSkill(action.skillId)
+              : await toggleSkill(action.skillId, action.enable);
         applyActionOutcome(action.id, outcome.ok, outcome.summary);
       }
     } finally {
@@ -397,10 +413,37 @@ export default function App() {
 
   const handleToggleSkill = useCallback((skill: ManagedSkill) => {
     const action = createSkillToggleAction(skill);
-    if (actions.some((existing) => existing.skillId === skill.id && existing.state === "pending")) return;
+    if (actions.some((existing) => existing.skillId === skill.id && existing.state === "pending"
+      && (existing.kind === "skillEnable" || existing.kind === "skillDisable"))) return;
     setActions((current) => [...current, action]);
     setSectionId("confirmation");
   }, [actions]);
+
+  const handleInstallSkill = useCallback(async () => {
+    const source = await selectSkillDirectory();
+    if (source === null || source === "") return;
+    const action = createSkillInstallAction(source);
+    setActions((current) =>
+      current.some((existing) => existing.state === "pending" && existing.kind === "skillInstall" && existing.source === source)
+        ? current
+        : [...current, action],
+    );
+    setSectionId("confirmation");
+  }, []);
+
+  const handleUninstallSkill = useCallback((skill: ManagedSkill) => {
+    setActions((current) =>
+      current.some((existing) => existing.state === "pending" && existing.kind === "skillUninstall" && existing.skillId === skill.id)
+        ? current
+        : [...current, createSkillUninstallAction(skill)],
+    );
+    setSectionId("confirmation");
+  }, []);
+
+  const pendingSkillIds = useMemo(
+    () => new Set(pendingOnly(actions).map((action) => action.skillId)),
+    [actions],
+  );
 
   return (
     <div className="jv-shell">
@@ -527,7 +570,14 @@ export default function App() {
                 onMarkRead: handleMarkMailRead,
                 onOpenReply: handleOpenMailReply,
               }}
-              skills={{ onToggle: handleToggleSkill }}
+              skills={{
+                onToggle: handleToggleSkill,
+                onInstall: () => {
+                  void handleInstallSkill();
+                },
+                onUninstall: handleUninstallSkill,
+                pendingSkillIds: pendingSkillIds,
+              }}
               homeModules={homeModuleConfig}
             />
           ) : (

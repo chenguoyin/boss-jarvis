@@ -1,8 +1,11 @@
 import type { ManagedSkill } from "./skillManager";
+import { nowDateTimeText } from "./datetime";
 
 export type ConfirmationKind =
   | "skillEnable"
-  | "skillDisable";
+  | "skillDisable"
+  | "skillInstall"
+  | "skillUninstall";
 
 export type ConfirmationState = "pending" | "executed" | "cancelled";
 
@@ -13,19 +16,21 @@ export interface PendingAction {
   basis: string;
   skillId: string;
   enable: boolean;
+  source: string;
   createdAt: string;
   state: ConfirmationState;
   summary: string | null;
 }
 
 function kindTitle(kind: ConfirmationKind): string {
-  return kind === "skillEnable" ? "启用 Skill" : "停用 Skill";
+  if (kind === "skillEnable") return "启用 Skill";
+  if (kind === "skillDisable") return "停用 Skill";
+  if (kind === "skillInstall") return "安装 Skill";
+  return "卸载 Skill";
 }
 
 function nowText(): string {
-  const date = new Date();
-  const pad = (value: number) => String(value).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+  return nowDateTimeText();
 }
 
 export function createSkillToggleAction(skill: ManagedSkill): PendingAction {
@@ -37,6 +42,37 @@ export function createSkillToggleAction(skill: ManagedSkill): PendingAction {
     basis: "当前状态：" + (skill.lifecycleStatus === "" ? "未获取" : lifecycleLabel(skill.lifecycleStatus)),
     skillId: skill.id,
     enable,
+    source: "",
+    createdAt: nowText(),
+    state: "pending",
+    summary: null,
+  };
+}
+
+export function createSkillInstallAction(source: string): PendingAction {
+  return {
+    id: crypto.randomUUID(),
+    kind: "skillInstall",
+    title: "安装 Skill：" + source,
+    basis: "安装源目录：" + source + "（安装后启用，可稍后停用）",
+    skillId: source,
+    enable: true,
+    source,
+    createdAt: nowText(),
+    state: "pending",
+    summary: null,
+  };
+}
+
+export function createSkillUninstallAction(skill: ManagedSkill): PendingAction {
+  return {
+    id: crypto.randomUUID(),
+    kind: "skillUninstall",
+    title: "卸载 Skill：" + skill.name,
+    basis: "卸载对象：" + skill.id + "；代码归档，不删除历史日志",
+    skillId: skill.id,
+    enable: false,
+    source: "",
     createdAt: nowText(),
     state: "pending",
     summary: null,

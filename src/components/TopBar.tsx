@@ -12,6 +12,7 @@ import {
 import ThemePicker from "./ThemePicker";
 import { sectionById } from "@/lib/sections";
 import type { Theme } from "@/lib/config";
+import { formatDateTime } from "@/lib/datetime";
 
 interface Props {
   sectionId: string;
@@ -30,16 +31,7 @@ interface Props {
   onOpenCustomizer: () => void;
 }
 
-function formatTime(timestamp: number): string {
-  const date = new Date(timestamp);
-  const pad = (value: number) => String(value).padStart(2, "0");
-  return String(date.getFullYear())
-    + "-" + pad(date.getMonth() + 1)
-    + "-" + pad(date.getDate())
-    + " " + pad(date.getHours())
-    + ":" + pad(date.getMinutes())
-    + ":" + pad(date.getSeconds());
-}
+const formatTime = formatDateTime;
 
 function countdownText(target: number, now: number): string {
   const remaining = Math.round((target - now) / 1000);

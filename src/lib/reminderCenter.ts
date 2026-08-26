@@ -1,4 +1,5 @@
 import type { SkillEnvelope } from "./contract";
+import { formatDateTime } from "./datetime";
 
 export type ReminderLevel = "urgent" | "attention" | "normal" | "missing";
 
@@ -63,13 +64,7 @@ function items(value: unknown): ReminderItem[] {
     .filter((item): item is ReminderItem => item !== null);
 }
 
-function fullTime(iso: unknown): string {
-  if (typeof iso !== "string" || iso === "") return "未获取";
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "未获取";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
-}
+const fullTime = formatDateTime;
 
 export function parseReminderCenter(envelope: SkillEnvelope | null): ReminderResult | null {
   if (envelope === null || !envelope.ok) return null;

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FileText, Lightbulb, MailOpen, Reply, X } from "lucide-react";
+import { FileText, Lightbulb, MailOpen, RefreshCw, Reply, X } from "lucide-react";
 import { mailLevelTitle, type MailLevel, type MailMessage, type MailResult } from "@/lib/mail";
 
 interface Props {
@@ -81,7 +81,9 @@ function DetailSheet({
             disabled={isReplying}
             onClick={() => onOpenReply(message)}
           >
-            <Reply size={15} strokeWidth={2} />
+            {isReplying
+              ? <RefreshCw size={15} strokeWidth={2} className="jv-refresh-spin" />
+              : <Reply size={15} strokeWidth={2} />}
             {isReplying ? "正在生成草稿..." : "回复"}
           </button>
         </div>

@@ -7,6 +7,7 @@ import {
   ShieldAlert,
   Sparkles,
 } from "lucide-react";
+import { Fragment } from "react";
 import type { DashboardSnapshot } from "@/lib/dashboard";
 import type { HomeModuleConfig, HomeModuleId } from "@/lib/config";
 
@@ -14,6 +15,7 @@ interface Props {
   snapshot: DashboardSnapshot;
   onNavigate: (sectionId: string) => void;
   onOpenMailReply: (message: DashboardSnapshot["mailItems"][number]) => void;
+  replyingMailIds: ReadonlySet<number>;
   homeModules: HomeModuleConfig;
 }
 
@@ -65,7 +67,7 @@ function PositiveState({ title, detail }: { title: string; detail: string }) {
   );
 }
 
-export default function DashboardView({ snapshot, onNavigate, onOpenMailReply, homeModules }: Props) {
+export default function DashboardView({ snapshot, onNavigate, onOpenMailReply, replyingMailIds, homeModules }: Props) {
   const { headline } = snapshot;
   const hidden = homeModules.hidden;
   const showModule = (id: HomeModuleId) => !hidden.has(id);
@@ -204,9 +206,10 @@ export default function DashboardView({ snapshot, onNavigate, onOpenMailReply, h
                 type="button"
                 className="jv-control jv-home-mail-reply"
                 title="在邮件客户端打开回复草稿，不代发"
+                disabled={replyingMailIds.has(message.id)}
                 onClick={() => onOpenMailReply(message)}
               >
-                回复
+                {replyingMailIds.has(message.id) ? "生成中..." : "回复"}
               </button>
             </div>
           ))
@@ -241,8 +244,20 @@ export default function DashboardView({ snapshot, onNavigate, onOpenMailReply, h
         </section>
       )}
 
-      {upperCards.length > 0 && <div className="jv-home-grid">{upperCards.map((id) => cardModule(id))}</div>}
-      {lowerCards.length > 0 && <div className="jv-home-grid">{lowerCards.map((id) => cardModule(id))}</div>}
+      {upperCards.length > 0 && (
+        <div className="jv-home-grid">
+          {upperCards.map((id) => (
+            <Fragment key={id}>{cardModule(id)}</Fragment>
+          ))}
+        </div>
+      )}
+      {lowerCards.length > 0 && (
+        <div className="jv-home-grid">
+          {lowerCards.map((id) => (
+            <Fragment key={id}>{cardModule(id)}</Fragment>
+          ))}
+        </div>
+      )}
 
       {showModule("metrics") && (
         <Panel

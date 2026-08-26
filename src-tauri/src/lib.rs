@@ -41,6 +41,14 @@ pub fn toggle_skill_for_integration(skill_id: &str, enable: bool) -> command_run
     command_runtime::toggle_skill(skill_id, enable)
 }
 
+pub fn install_skill_for_integration(source: &str) -> command_runtime::CommandOutcome {
+    command_runtime::install_skill(source)
+}
+
+pub fn uninstall_skill_for_integration(skill_id: &str) -> command_runtime::CommandOutcome {
+    command_runtime::uninstall_skill(skill_id)
+}
+
 #[tauri::command]
 fn data_dir() -> String {
     skill_runtime::data_dir().to_string_lossy().into_owned()
@@ -56,6 +64,23 @@ fn toggle_maximize(window: tauri::WebviewWindow) {
     }
 }
 
+/// Skill 安装源目录选择：双端原生目录选择器，选中的路径交确认中心确认。
+#[tauri::command]
+async fn select_skill_directory(window: tauri::WebviewWindow) -> Option<String> {
+    let (tx, rx) = std::sync::mpsc::channel::<Option<String>>();
+    let result = window.run_on_main_thread(move || {
+        let picked = rfd::FileDialog::new()
+            .set_title("选择包含 SKILL.md 的 Skill 目录")
+            .pick_folder()
+            .map(|path| path.to_string_lossy().into_owned());
+        let _ = tx.send(picked);
+    });
+    if result.is_err() {
+        return None;
+    }
+    rx.recv().ok().flatten()
+}
+
 #[tauri::command]
 fn fetch_skill(skill: String) -> skill_runtime::FetchOutcome {
     let manifest = manifest::load();
@@ -63,25 +88,33 @@ fn fetch_skill(skill: String) -> skill_runtime::FetchOutcome {
 }
 
 #[tauri::command]
-fn fetch_skills(skills: Vec<String>) -> Vec<skill_runtime::FetchOutcome> {
-    let manifest = manifest::load();
-    manifest
-        .fetch_tasks()
-        .into_iter()
-        .filter(|task| skills.contains(&task.id))
-        .map(|task| skill_runtime::fetch_skill(&manifest, &task.id))
-        .collect()
+async fn fetch_skills(skills: Vec<String>) -> Result<Vec<skill_runtime::FetchOutcome>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let manifest = manifest::load();
+        manifest
+            .fetch_tasks()
+            .into_iter()
+            .filter(|task| skills.contains(&task.id))
+            .map(|task| skill_runtime::fetch_skill(&manifest, &task.id))
+            .collect()
+    })
+    .await
+    .map_err(|error| error.to_string())
 }
 
 /// 手动/自动刷新使用：执行 manifest 中全部取数任务，壳层按当前分区回读。
 #[tauri::command]
-fn fetch_all_skills() -> Vec<skill_runtime::FetchOutcome> {
-    let manifest = manifest::load();
-    manifest
-        .fetch_tasks()
-        .into_iter()
-        .map(|task| skill_runtime::fetch_skill(&manifest, &task.id))
-        .collect()
+async fn fetch_all_skills() -> Result<Vec<skill_runtime::FetchOutcome>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let manifest = manifest::load();
+        manifest
+            .fetch_tasks()
+            .into_iter()
+            .map(|task| skill_runtime::fetch_skill(&manifest, &task.id))
+            .collect()
+    })
+    .await
+    .map_err(|error| error.to_string())
 }
 
 #[tauri::command]
@@ -159,29 +192,63 @@ fn read_audit_log(date: String) -> Option<String> {
 }
 
 #[tauri::command]
-fn approve_todo(skill: String, title: String, comment: String, approve: bool) -> command_runtime::CommandOutcome {
-    command_runtime::approve_todo(&skill, &title, &comment, approve)
+async fn approve_todo(skill: String, title: String, comment: String, approve: bool) -> Result<command_runtime::CommandOutcome, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        command_runtime::approve_todo(&skill, &title, &comment, approve)
+    })
+    .await
+    .map_err(|error| error.to_string())
 }
 
 #[tauri::command]
-fn toggle_skill(skill_id: String, enable: bool) -> command_runtime::CommandOutcome {
-    command_runtime::toggle_skill(&skill_id, enable)
+async fn toggle_skill(skill_id: String, enable: bool) -> Result<command_runtime::CommandOutcome, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        command_runtime::toggle_skill(&skill_id, enable)
+    })
+    .await
+    .map_err(|error| error.to_string())
 }
 
 #[tauri::command]
-fn mark_mail_read(message_id: i64) -> command_runtime::CommandOutcome {
-    command_runtime::mark_mail_read(message_id)
+async fn install_skill(source: String) -> Result<command_runtime::CommandOutcome, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        command_runtime::install_skill(&source)
+    })
+    .await
+    .map_err(|error| error.to_string())
 }
 
 #[tauri::command]
-fn open_mail_reply(
+async fn uninstall_skill(skill_id: String) -> Result<command_runtime::CommandOutcome, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        command_runtime::uninstall_skill(&skill_id)
+    })
+    .await
+    .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+async fn mark_mail_read(message_id: i64) -> Result<command_runtime::CommandOutcome, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        command_runtime::mark_mail_read(message_id)
+    })
+    .await
+    .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+async fn open_mail_reply(
     to: String,
     subject: String,
     body_summary: String,
     reply_basis: String,
     sender: String,
-) -> command_runtime::CommandOutcome {
-    command_runtime::open_mail_reply(&to, &subject, &body_summary, &reply_basis, &sender)
+) -> Result<command_runtime::CommandOutcome, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        command_runtime::open_mail_reply(&to, &subject, &body_summary, &reply_basis, &sender)
+    })
+    .await
+    .map_err(|error| error.to_string())
 }
 
 #[tauri::command]
@@ -219,6 +286,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             data_dir,
             toggle_maximize,
+            select_skill_directory,
             fetch_skills,
             fetch_all_skills,
             fetch_skill,
@@ -230,6 +298,8 @@ pub fn run() {
             read_audit_log,
             approve_todo,
             toggle_skill,
+            install_skill,
+            uninstall_skill,
             mark_mail_read,
             open_mail_reply,
             read_skill_env,

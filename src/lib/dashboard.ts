@@ -4,6 +4,7 @@ import type { MailMessage, MailResult } from "./mail";
 import type { NativeCalendarResult } from "./nativeCalendar";
 import type { DailyBriefing } from "./dailyBriefing";
 import type { HongyiSnapshot } from "./hongyiBusiness";
+import { formatDateTime } from "./datetime";
 
 export type DashboardLevel = "urgent" | "attention" | "normal" | "missing";
 
@@ -86,10 +87,8 @@ function levelOrder(level: DashboardLevel): number {
 
 function reminderTime(value: string): string {
   if (value === "") return "未获取";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+  const formatted = formatDateTime(value);
+  return formatted === "未获取" ? value : formatted;
 }
 
 function targetSectionForSource(source: string): string {
@@ -106,8 +105,7 @@ function latestTime(values: Array<string | null>): string {
     .filter((date): date is Date => date !== null);
   if (dates.length === 0) return "未获取";
   const latest = dates.reduce((acc, item) => (item > acc ? item : acc), dates[0]);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${latest.getFullYear()}-${pad(latest.getMonth() + 1)}-${pad(latest.getDate())} ${pad(latest.getHours())}:${pad(latest.getMinutes())}:${pad(latest.getSeconds())}`;
+  return formatDateTime(latest);
 }
 
 function todoFromReminder(item: ReminderItem): DashboardTodoItem {
