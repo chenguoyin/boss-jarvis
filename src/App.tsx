@@ -60,6 +60,7 @@ import {
   getHomeModuleConfig,
   setHomeModuleConfig,
   type HomeModuleConfig,
+  type HomeModuleId,
   type Theme,
 } from "./lib/config";
 
@@ -199,6 +200,15 @@ export default function App() {
     setHomeModuleConfig(next);
     setHomeModuleConfigState(next);
   }, []);
+
+  const updateHomeModuleOrder = useCallback(
+    (order: HomeModuleId[]) => {
+      const next = { order, hidden: homeModuleConfig.hidden };
+      setHomeModuleConfig(next);
+      setHomeModuleConfigState(next);
+    },
+    [homeModuleConfig.hidden],
+  );
 
   const oaEnvelope = envelopes["oa-todo"] ?? null;
   const mailEnvelope = envelopes["company-mail"] ?? null;
@@ -573,6 +583,7 @@ export default function App() {
                 pendingSkillIds: pendingSkillIds,
               }}
               homeModules={homeModuleConfig}
+              onHomeModuleOrderChange={updateHomeModuleOrder}
             />
           ) : (
             <PlaceholderView

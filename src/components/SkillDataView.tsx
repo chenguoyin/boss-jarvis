@@ -25,7 +25,7 @@ import AuditLogView from "./AuditLogView";
 import { parseAuditLog } from "@/lib/auditLog";
 import type { OATodoItem } from "@/lib/oaTodo";
 import type { ManagedSkill } from "@/lib/skillManager";
-import type { HomeModuleConfig } from "@/lib/config";
+import type { HomeModuleConfig, HomeModuleId } from "@/lib/config";
 
 interface Props {
   section: AppSection;
@@ -68,6 +68,7 @@ interface Props {
     pendingSkillIds: ReadonlySet<string>;
   };
   homeModules: HomeModuleConfig;
+  onHomeModuleOrderChange: (order: HomeModuleId[]) => void;
 }
 
 function displayValue(value: unknown): string {
@@ -92,6 +93,7 @@ export default function SkillDataView({
   mail,
   skills,
   homeModules,
+  onHomeModuleOrderChange,
 }: Props) {
   // 数据只在信封变化时解析一次；点击/悬停/弹层不再重复解析大体量契约 JSON。
   const parsed = useMemo(() => {
@@ -165,6 +167,7 @@ export default function SkillDataView({
           onOpenMailReply={mail.onOpenReply}
           replyingMailIds={mail.replyingIds}
           homeModules={homeModules}
+          onHomeModuleOrderChange={onHomeModuleOrderChange}
         />
       ) : section.id === "skills" ? (
         <SkillManagerView

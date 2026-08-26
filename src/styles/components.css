@@ -1067,6 +1067,28 @@
   gap: 18px;
 }
 
+.jv-home-card {
+  display: flex;
+  min-width: 0;
+}
+
+.jv-home-card > .jv-home-panel {
+  flex: 1;
+}
+
+.jv-home-card[draggable="true"] {
+  cursor: grab;
+}
+
+.jv-home-card-dragging {
+  opacity: 0.56;
+}
+
+.jv-home-card-target > .jv-home-panel {
+  border-color: var(--jv-blue);
+  box-shadow: 0 0 0 2px var(--jv-blue);
+}
+
 .jv-home-panel {
   display: flex;
   flex-direction: column;
