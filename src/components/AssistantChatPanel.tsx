@@ -21,6 +21,8 @@ export default function AssistantChatPanel({ runtime, onClose }: Props) {
   const historyRef = useRef<Record<string, unknown>[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  // 同步锁：state 更新是异步的，防同一事件循环内连点/双触发造成重复提交。
+  const sendingRef = useRef(false);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -33,7 +35,8 @@ export default function AssistantChatPanel({ runtime, onClose }: Props) {
 
   const send = (text: string) => {
     const question = text.trim();
-    if (question === "" || isBusy) return;
+    if (question === "" || isBusy || sendingRef.current) return;
+    sendingRef.current = true;
     setDraft("");
     setMessages((current) => [...current, { id: Date.now(), role: "user", text: question }]);
     setBusy(true);
@@ -43,13 +46,17 @@ export default function AssistantChatPanel({ runtime, onClose }: Props) {
       runtime,
       emit: (message) => setMessages((current) => [...current, message]),
       onBusyChange: setBusy,
-    }).catch(() => {
-      setMessages((current) => [
-        ...current,
-        { id: Date.now(), role: "assistant", text: "抱歉，这次没能完成：本地调用链异常。" },
-      ]);
-      setBusy(false);
-    });
+    })
+      .catch(() => {
+        setMessages((current) => [
+          ...current,
+          { id: Date.now(), role: "assistant", text: "抱歉，这次没能完成：本地调用链异常。" },
+        ]);
+        setBusy(false);
+      })
+      .finally(() => {
+        sendingRef.current = false;
+      });
     inputRef.current?.focus();
   };
 
