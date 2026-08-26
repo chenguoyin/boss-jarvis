@@ -457,7 +457,6 @@
 }
 
 .jv-skill-name {
-  color: var(--jv-text);
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2306,4 +2305,46 @@
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+/* ---------- 列表默认文字色：所有数据列表（含表头）统一主文字色 ---------- */
+.jv-oa-row,
+.jv-expense-row,
+.jv-mail-row,
+.jv-calendar-event-row,
+.jv-calendar-reminder-row,
+.jv-audit-row,
+.jv-skill-row,
+.jv-skill-status-row,
+.jv-briefing-item,
+.jv-confirm-action,
+.jv-confirm-settled-row,
+.jv-weekly-line,
+.jv-weekly-event,
+.jv-home-todo,
+.jv-home-aggregate,
+.jv-home-mail,
+.jv-home-risk,
+.jv-home-metric {
+  color: var(--jv-ink);
+}
+
+:is(.jv-oa-row, .jv-expense-row, .jv-mail-row, .jv-calendar-event-row, .jv-calendar-reminder-row, .jv-audit-row, .jv-skill-row, .jv-skill-status-row, .jv-briefing-item, .jv-confirm-action, .jv-confirm-settled-row, .jv-weekly-line, .jv-weekly-event, .jv-home-todo, .jv-home-aggregate, .jv-home-mail, .jv-home-risk, .jv-home-metric) :is(.jv-muted, .jv-faint, .jv-expense-index, .jv-mail-index, .jv-mail-basis, .jv-mail-sender, .jv-mail-time, .jv-briefing-index, .jv-confirm-basis, .jv-confirm-basis b, .jv-skill-status-name, .jv-weekly-event-time, .jv-weekly-event-date, .jv-audit-target .jv-caption) {
+  color: inherit;
+}
+
+:is(.jv-oa-row, .jv-expense-row, .jv-mail-row, .jv-calendar-event-row, .jv-calendar-reminder-row, .jv-audit-row, .jv-skill-row, .jv-skill-status-row, .jv-briefing-item, .jv-confirm-action, .jv-confirm-settled-row, .jv-weekly-line, .jv-weekly-event, .jv-home-todo, .jv-home-aggregate, .jv-home-mail, .jv-home-risk, .jv-home-metric) .jv-level-normal {
+  color: var(--jv-normal);
+}
+
+:is(.jv-oa-row, .jv-expense-row, .jv-mail-row, .jv-calendar-event-row, .jv-calendar-reminder-row, .jv-audit-row, .jv-skill-row, .jv-skill-status-row, .jv-briefing-item, .jv-confirm-action, .jv-confirm-settled-row, .jv-weekly-line, .jv-weekly-event, .jv-home-todo, .jv-home-aggregate, .jv-home-mail, .jv-home-risk, .jv-home-metric) .jv-level-urgent {
+  color: var(--jv-urgent);
+}
+
+:is(.jv-oa-row, .jv-expense-row, .jv-mail-row, .jv-calendar-event-row, .jv-calendar-reminder-row, .jv-audit-row, .jv-skill-row, .jv-skill-status-row, .jv-briefing-item, .jv-confirm-action, .jv-confirm-settled-row, .jv-weekly-line, .jv-weekly-event, .jv-home-todo, .jv-home-aggregate, .jv-home-mail, .jv-home-risk, .jv-home-metric) .jv-level-attention {
+  color: var(--jv-attention);
+}
+
+:is(.jv-oa-row, .jv-expense-row, .jv-mail-row, .jv-calendar-event-row, .jv-calendar-reminder-row, .jv-audit-row, .jv-skill-row, .jv-skill-status-row, .jv-briefing-item, .jv-confirm-action, .jv-confirm-settled-row, .jv-weekly-line, .jv-weekly-event, .jv-home-todo, .jv-home-aggregate, .jv-home-mail, .jv-home-risk, .jv-home-metric) .jv-level-missing {
+  color: var(--jv-blue);
 }

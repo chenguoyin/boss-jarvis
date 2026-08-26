@@ -209,7 +209,7 @@ export default function WeeklySummaryView({ summary, dates, selectedDate, onSele
             {summary.nextWeekEvents.map((event, index) => (
               <div key={`${event.date}-${event.title}-${index}`} className="jv-weekly-event">
                 <span className="jv-caption jv-weekly-event-date">{event.date}</span>
-                <span className="jv-caption jv-muted jv-weekly-event-time">{event.time}</span>
+                <span className="jv-caption jv-weekly-event-time">{event.time}</span>
                 <span className="jv-body">{event.title}</span>
               </div>
             ))}

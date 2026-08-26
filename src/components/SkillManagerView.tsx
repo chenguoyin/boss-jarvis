@@ -54,7 +54,7 @@ export default function SkillManagerView({
         <div className="jv-body jv-muted jv-empty">未注册任何 Skill</div>
       ) : (
         <div className="jv-skill-table">
-          <div className="jv-skill-row jv-skill-row-head jv-caption jv-muted">
+          <div className="jv-skill-row jv-skill-row-head jv-caption">
             <span className="jv-skill-col-index">#</span>
             <span>Skill</span>
             <span className="jv-skill-col-status">生命周期</span>
@@ -62,11 +62,11 @@ export default function SkillManagerView({
             <span className="jv-skill-col-actions">操作</span>
           </div>
           {result.items.map((skill, index) => (
-            <div key={skill.id} className="jv-skill-row jv-body jv-muted">
+            <div key={skill.id} className="jv-skill-row jv-body">
               <span className="jv-skill-col-index">{index + 1}</span>
               <span className="jv-skill-main">
                 <span className="jv-body jv-skill-name">{skill.name}</span>
-                <span className="jv-caption jv-muted">
+                <span className="jv-caption">
                   {skill.description === "" ? "未获取" : skill.description}
                 </span>
               </span>
@@ -78,7 +78,7 @@ export default function SkillManagerView({
               </span>
               <span className="jv-skill-col-actions">
                 {pendingSkillIds.has(skill.id) ? (
-                  <span className="jv-caption jv-muted">已入队</span>
+                  <span className="jv-caption">已入队</span>
                 ) : (
                   <>
                     <button

@@ -41,7 +41,7 @@ export default function ExpenseTodoView({ result }: Props) {
               <span className="jv-caption jv-expense-index">{index + 1}</span>
               <div className="jv-expense-main">
                 <div className="jv-body jv-oa-title">{item.title}</div>
-                <div className="jv-caption jv-muted">
+                <div className="jv-caption">
                   {item.source}
                   {item.sender !== "" && <> · {item.sender}</>}
                   {item.time !== "" && <> · {item.time}</>}
