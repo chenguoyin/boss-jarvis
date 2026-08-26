@@ -59,8 +59,7 @@
       "displayName": "老板驾驶舱",
       "kind": "common",
       "runner": "node",
-      "fetch": "boss-cockpit/build-cockpit.cjs",
-      "fetchArgs": ["--run-reminders"]
+      "fetch": "boss-cockpit/build-cockpit.cjs"
     },
     "audit-log": {
       "displayName": "审计日志",

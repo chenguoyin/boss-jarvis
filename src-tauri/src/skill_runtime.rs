@@ -1,12 +1,13 @@
 use serde::Serialize;
 use std::collections::HashMap;
 use std::io::Read;
+use std::panic::AssertUnwindSafe;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
-
 const FETCH_TIMEOUT_SECS: u64 = 150;
+const FETCH_CONCURRENCY: usize = 4;
 
 #[derive(Debug)]
 pub struct RunOutcome {
@@ -18,6 +19,15 @@ pub struct RunOutcome {
 
 pub fn data_dir() -> PathBuf {
     crate::paths::data_dir()
+}
+
+fn write_file_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let temp = path.with_extension("json.tmp");
+    std::fs::write(&temp, bytes)?;
+    std::fs::rename(&temp, path)
 }
 
 /// GUI App 不继承登录 shell 的 PATH；统一补齐 node 常见安装位置，
@@ -206,7 +216,18 @@ pub fn fetch_skill(manifest: &crate::manifest::Manifest, id: &str) -> FetchOutco
 
     let script = manifest.skills_root().join(&resolved.script);
     let output_file = data_dir().join(format!("{}.json", id));
-    let result = run_with_timeout(&resolved.runner, &script, &resolved.args, FETCH_TIMEOUT_SECS);
+    // boss-cockpit 是聚合器：由壳层传入已有契约 JSON，避免它在取数链路里再次
+    // 逐个执行上游 Skill；同时保证任一数据源缺失时仍能产出其余数据的驾驶舱。
+    let mut args = resolved.args.clone();
+    if id == "boss-cockpit" {
+        for source in ["oa-todo", "company-mail", "native-calendar", "spm-todo"] {
+            let path = data_dir().join(format!("{source}.json"));
+            if path.is_file() {
+                args.push(format!("--source={source}:{}", path.display()));
+            }
+        }
+    }
+    let result = run_with_timeout(&resolved.runner, &script, &args, FETCH_TIMEOUT_SECS);
     if !result.ok {
         let error = prefer_json_error(&result.stdout, &result.stderr, &result.error);
         log_fetch(&skill, false, &error, &result.stdout, &result.stderr);
@@ -255,12 +276,42 @@ pub fn fetch_skill(manifest: &crate::manifest::Manifest, id: &str) -> FetchOutco
     }
 }
 
+/// 并发取数：保持传入 id 顺序返回；单任务异常被隔离为该 Skill 的失败结果，不拖垮整批。
+pub fn fetch_skills(manifest: &crate::manifest::Manifest, ids: &[String]) -> Vec<FetchOutcome> {
+    if ids.len() <= 1 {
+        return ids.iter().map(|id| fetch_skill(manifest, id)).collect();
+    }
+    let pool = rayon::ThreadPoolBuilder::new()
+        .num_threads(FETCH_CONCURRENCY)
+        .build()
+        .unwrap_or_else(|_| {
+            rayon::ThreadPoolBuilder::new()
+                .num_threads(2)
+                .build()
+                .expect("fallback rayon pool")
+        });
+    ids.iter()
+        .map(|id| {
+            pool.install(|| {
+                std::panic::catch_unwind(AssertUnwindSafe(|| fetch_skill(manifest, id)))
+                    .unwrap_or_else(|_| FetchOutcome {
+                        skill: id.clone(),
+                        ok: false,
+                        error: "取数任务异常退出".to_string(),
+                    })
+            })
+        })
+        .collect()
+}
+
 fn write_json(path: &Path, value: &serde_json::Value) {
     if let Some(parent) = path.parent() {
         let _ = std::fs::create_dir_all(parent);
     }
-    if let Ok(text) = serde_json::to_string_pretty(value) {
-        let _ = std::fs::write(path, text);
+    if let Ok(bytes) = serde_json::to_vec_pretty(value) {
+        if let Err(error) = write_file_atomic(path, &bytes) {
+            log_fetch("workbench", false, &format!("写入 {} 失败：{}", path.display(), error), "", "");
+        }
     }
 }
 
@@ -316,9 +367,33 @@ fn log_fetch(skill: &str, ok: bool, error: &str, stdout: &str, stderr: &str) {
         truncate(stderr, 400)
     );
     let path = dir.join("fetch.log");
+    rotate_log_if_needed(&path);
     if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
         let _ = f.write_all(line.as_bytes());
     }
+}
+
+const FETCH_LOG_MAX_BYTES: u64 = 2 * 1024 * 1024;
+
+/// 日志压缩轮转：超过 2MB 归档为 fetch.log.1，只保留一代，避免长期运行撑爆磁盘。
+fn rotate_log_if_needed(path: &Path) {
+    let Ok(meta) = std::fs::metadata(path) else {
+        return;
+    };
+    if meta.len() <= FETCH_LOG_MAX_BYTES {
+        return;
+    }
+    let archived = dir_archive_path(path);
+    let _ = std::fs::remove_file(&archived);
+    if std::fs::rename(path, &archived).is_err() {
+        let _ = std::fs::remove_file(path);
+    }
+}
+
+fn dir_archive_path(path: &Path) -> PathBuf {
+    let mut name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+    name.push_str(".1");
+    path.with_file_name(name)
 }
 
 fn iso_now() -> String {

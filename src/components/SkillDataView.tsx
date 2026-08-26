@@ -117,6 +117,7 @@ export default function SkillDataView({
 
   const companyMail = parsed.parsedMail === null ? null : hideMailMessages(parsed.parsedMail, mail.hiddenIds);
   const { skillManager, nativeCalendar, briefing, weeklySummary, hongyiSnapshot, oaTodo } = parsed;
+  const auditEntries = useMemo(() => parseAuditLog(audit.jsonl), [audit.jsonl]);
   const dashboardSnapshot = useMemo(
     () => buildDashboardSnapshot({
       reminders: parsed.reminders,
@@ -210,7 +211,7 @@ export default function SkillDataView({
           result={{
             dates: audit.dates,
             selectedDate: audit.selectedDate,
-            entries: parseAuditLog(audit.jsonl),
+            entries: auditEntries,
             onSelectDate: audit.onSelectDate,
           }}
           isRunning={isRunning}

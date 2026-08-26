@@ -11,6 +11,26 @@ export interface SkillFailure {
   error: string;
 }
 
+// 老板视角：把底层脚本错误翻译成可决策的提示，不暴露堆栈细节。
+function humanizeError(skill: string, raw: string): string {
+  const error = raw.trim();
+  const label = skill === "workbench" ? "工作台" : skill;
+  if (error.includes("ERR_INTERNET_DISCONNECTED")) {
+    return `${label}：网络未连接，请检查网络后重试。`;
+  }
+  if (/timeout|timed out|超时/i.test(error)) {
+    return `${label}：源系统响应超时，已保留上次数据，可稍后重试。`;
+  }
+  if (error.includes("无法启动 node")) {
+    return `${label}：本机 Node 运行环境未就绪，请在系统配置检查运行环境。`;
+  }
+  if (error.includes("输出不是 JSON")) {
+    return `${label}：数据源返回异常，已保留上次数据。`;
+  }
+  const compact = error.length > 160 ? error.slice(0, 160) + "…" : error;
+  return compact === "" ? `${label}：数据未获取。` : `${label}：${compact}`;
+}
+
 export function useSkillData(sectionSkills: string[], allSkills: string[]) {
   const [envelopes, setEnvelopes] = useState<Record<string, SkillEnvelope | null>>({});
   const [failures, setFailures] = useState<SkillFailure[]>([]);
@@ -30,13 +50,10 @@ export function useSkillData(sectionSkills: string[], allSkills: string[]) {
   }, []);
 
   // 启动只读本地契约 JSON，不触发任何 Skill 执行，首屏不转圈。
+  // allSkills 已覆盖各分区，切换分区不再重复读同一批文件。
   useEffect(() => {
     void loadLocal(allSkills);
   }, [allSkills, loadLocal]);
-
-  useEffect(() => {
-    void loadLocal(sectionSkills);
-  }, [sectionSkills, loadLocal]);
 
   const refresh = useCallback(
     async (skills: string[]) => {
@@ -47,11 +64,11 @@ export function useSkillData(sectionSkills: string[], allSkills: string[]) {
       }
       setIsReloading(true);
       setFailures([]);
-      setActivity("正在获取，请稍候...");
+      setActivity(targets.length === 1 ? "正在获取 1 项数据…" : `正在获取 ${targets.length} 项数据…`);
       try {
         const outcomes = await fetchSkills(targets);
         const failed = outcomes.filter((o) => !o.ok);
-        setFailures(failed.map(({ skill, error }) => ({ skill, error })));
+        setFailures(failed.map(({ skill, error }) => ({ skill, error: humanizeError(skill, error) })));
         await loadLocal(targets);
       } catch (error) {
         setFailures([{ skill: "workbench", error: String(error) }]);
@@ -67,10 +84,10 @@ export function useSkillData(sectionSkills: string[], allSkills: string[]) {
   const refreshAll = useCallback(async () => {
       setIsReloading(true);
       setFailures([]);
-      setActivity("正在获取，请稍候...");
+      setActivity("正在获取全部数据…");
       try {
         const outcomes = await fetchAllSkills();
-        setFailures(outcomes.filter((o) => !o.ok).map(({ skill, error }) => ({ skill, error })));
+        setFailures(outcomes.filter((o) => !o.ok).map(({ skill, error }) => ({ skill, error: humanizeError(skill, error) })));
         await loadLocal(sectionSkillsRef.current);
       } catch (error) {
         setFailures([{ skill: "workbench", error: String(error) }]);

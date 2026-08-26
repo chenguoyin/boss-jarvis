@@ -200,8 +200,10 @@ export default function App() {
     setHomeModuleConfigState(next);
   }, []);
 
-  const oaTodoResult = parseOATodo(envelopes["oa-todo"] ?? null);
-  const mailResult = parseCompanyMail(envelopes["company-mail"] ?? null);
+  const oaEnvelope = envelopes["oa-todo"] ?? null;
+  const mailEnvelope = envelopes["company-mail"] ?? null;
+  const oaTodoResult = useMemo(() => parseOATodo(oaEnvelope), [oaEnvelope]);
+  const mailResult = useMemo(() => parseCompanyMail(mailEnvelope), [mailEnvelope]);
   const badgeFor = useCallback((id: string) => {
     if (id === "oa-todo") return oaTodoResult?.total;
     if (id === "mail") return mailResult?.needsReplyCount;

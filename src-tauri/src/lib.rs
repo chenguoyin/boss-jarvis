@@ -25,7 +25,11 @@ fn read_daily_briefing_report_sync() -> Option<String> {
 
 /// 集成测试辅助：让 tests/ 复用与命令面相同的取数链路。
 pub fn fetch_skill_for_integration(skill: &str) -> skill_runtime::FetchOutcome {
-    skill_runtime::fetch_skill(&manifest::load(), skill)
+    skill_runtime::fetch_skill(manifest::load_cached(), skill)
+}
+
+pub fn fetch_skills_for_integration(skills: &[String]) -> Vec<skill_runtime::FetchOutcome> {
+    skill_runtime::fetch_skills(manifest::load_cached(), skills)
 }
 
 pub fn data_dir_for_integration() -> std::path::PathBuf {
@@ -105,13 +109,16 @@ async fn fetch_skill(skill: String) -> Result<skill_runtime::FetchOutcome, Strin
 #[tauri::command]
 async fn fetch_skills(skills: Vec<String>) -> Result<Vec<skill_runtime::FetchOutcome>, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let manifest = manifest::load();
-        manifest
-            .fetch_tasks()
+        let manifest = manifest::load_cached();
+        let mut ids: Vec<String> = manifest
+            .fetch_task_ids()
             .into_iter()
-            .filter(|task| skills.contains(&task.id))
-            .map(|task| skill_runtime::fetch_skill(&manifest, &task.id))
-            .collect()
+            .filter(|id| skills.contains(id))
+            .collect();
+        if ids.is_empty() {
+            ids = skills;
+        }
+        skill_runtime::fetch_skills(manifest, &ids)
     })
     .await
     .map_err(|error| error.to_string())
@@ -121,12 +128,9 @@ async fn fetch_skills(skills: Vec<String>) -> Result<Vec<skill_runtime::FetchOut
 #[tauri::command]
 async fn fetch_all_skills() -> Result<Vec<skill_runtime::FetchOutcome>, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let manifest = manifest::load();
-        manifest
-            .fetch_tasks()
-            .into_iter()
-            .map(|task| skill_runtime::fetch_skill(&manifest, &task.id))
-            .collect()
+        let manifest = manifest::load_cached();
+        let ids = manifest.fetch_task_ids();
+        skill_runtime::fetch_skills(manifest, &ids)
     })
     .await
     .map_err(|error| error.to_string())
@@ -136,7 +140,9 @@ async fn fetch_all_skills() -> Result<Vec<skill_runtime::FetchOutcome>, String> 
 async fn read_skill_data(skill: String) -> Option<String> {
     tauri::async_runtime::spawn_blocking(move || {
         let path = skill_runtime::data_dir().join(format!("{skill}.json"));
-        std::fs::read_to_string(path).ok()
+        std::fs::read(path)
+            .ok()
+            .and_then(|bytes| String::from_utf8(bytes).ok())
     })
     .await
     .ok()

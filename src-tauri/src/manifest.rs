@@ -1,6 +1,7 @@
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::OnceLock;
 
 /// skills/manifest.json 是 skill → 平台 → 脚本 + runner 的唯一入口，
 /// include_str! 内嵌进壳层，改清单双端生效。
@@ -75,6 +76,13 @@ pub enum PlatformResolution {
 
 pub struct SkillFetchTask {
     pub id: String,
+}
+
+static MANIFEST_CACHE: OnceLock<Manifest> = OnceLock::new();
+
+/// 清单由 include_str! 内嵌，进程内不可变；缓存解析与校验结果，避免每次刷新重复执行。
+pub fn load_cached() -> &'static Manifest {
+    MANIFEST_CACHE.get_or_init(load)
 }
 
 pub struct ResolvedAction {
@@ -168,6 +176,10 @@ impl Manifest {
         }
         tasks.sort_by(|a, b| a.id.cmp(&b.id));
         tasks
+    }
+
+    pub fn fetch_task_ids(&self) -> Vec<String> {
+        self.fetch_tasks().into_iter().map(|task| task.id).collect()
     }
 
     /// 解析当前平台的动作脚本；确认中心和直达操作共用同一入口。

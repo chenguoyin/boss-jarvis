@@ -13,6 +13,41 @@ fn fetch_skill_manager_writes_contract_json() {
 }
 
 #[test]
+#[ignore = "依赖本机 ~/.codex/skills 与已有契约数据，按需手动验证"]
+fn fetch_boss_cockpit_aggregates_existing_contract_json() {
+    // 驾驶舱聚合不应因单一上游缺失而整体失败；已有任一契约 JSON 即可产出。
+    let data_dir = boss_jarvis_lib::data_dir_for_integration();
+    let has_source = ["oa-todo", "company-mail", "native-calendar", "spm-todo"]
+        .iter()
+        .any(|skill| data_dir.join(format!("{skill}.json")).is_file());
+    if !has_source {
+        return;
+    }
+    let outcome = boss_jarvis_lib::fetch_skill_for_integration("boss-cockpit");
+    assert!(outcome.ok, "驾驶舱取数失败: {}", outcome.error);
+    let path = data_dir.join("boss-cockpit.json");
+    let text = std::fs::read_to_string(&path).expect("驾驶舱数据应已落盘");
+    let parsed: serde_json::Value = serde_json::from_str(&text).expect("驾驶舱输出应为 JSON");
+    assert_eq!(parsed["ok"], true, "驾驶舱应聚合成功: {}", parsed["unavailableSources"]);
+    assert!(parsed["homepage"].is_object(), "驾驶舱应包含 homepage 聚合结果");
+}
+
+#[test]
+#[ignore = "依赖本机 ~/.codex/skills，按需手动验证"]
+fn fetch_skills_concurrent_keeps_order_and_isolates_failures() {
+    let ids = vec![
+        "skill-manager".to_string(),
+        "__missing_skill__".to_string(),
+    ];
+    let outcomes = boss_jarvis_lib::fetch_skills_for_integration(&ids);
+    assert_eq!(outcomes.len(), 2, "并发取数应保持传入顺序与数量");
+    assert_eq!(outcomes[0].skill, "skill-manager");
+    assert_eq!(outcomes[1].skill, "__missing_skill__");
+    assert!(outcomes[0].ok, "skill-manager 应取数成功: {}", outcomes[0].error);
+    assert!(!outcomes[1].ok, "未知 Skill 应失败而不是拖垮整批");
+}
+
+#[test]
 #[ignore = "依赖本机 daily-briefing 巡检产物，按需手动验证"]
 fn read_daily_briefing_report_returns_latest_cockpit() {
     let Some(text) = boss_jarvis_lib::read_daily_briefing_report_for_integration() else {
