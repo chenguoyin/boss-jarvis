@@ -25,6 +25,7 @@ function Panel({
   subtitle,
   pill,
   footer,
+  solidText,
   children,
 }: {
   icon: React.ReactNode;
@@ -32,10 +33,11 @@ function Panel({
   subtitle: string;
   pill?: { value: string; label: string; level: string };
   footer: string;
+  solidText?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <section className="jv-home-panel">
+    <section className={"jv-home-panel" + (solidText ? " jv-home-solid" : "")}>
       <header className="jv-home-panel-header">
         <span className="jv-home-panel-icon">{icon}</span>
         <div className="jv-home-panel-heading">
@@ -84,6 +86,7 @@ export default function DashboardView({ snapshot, onNavigate, onOpenMailReply, r
             level: snapshot.urgentTodoCount > 0 ? "urgent" : "normal",
           }}
           footer={"来源：统一提醒中心 · 更新 " + snapshot.remindersFetchedAt}
+          solidText
         >
           {snapshot.todoItems.length === 0 ? (
             <PositiveState title="今日无紧急事项" detail="低优先级提醒已在后台归档，可随时查看" />
@@ -157,6 +160,7 @@ export default function DashboardView({ snapshot, onNavigate, onOpenMailReply, r
             level: snapshot.riskItems.some((item) => item.impact === "high") ? "urgent" : "normal",
           }}
           footer={"来源：统一提醒中心 / 邮件分析 / 虹翼 · 更新 " + headline.updatedAt}
+          solidText
         >
           {snapshot.riskItems.length === 0 ? (
             <PositiveState title="当前无高风险项" detail="应收、项目与合同风险均在阈值内，持续监控中" />
@@ -191,6 +195,7 @@ export default function DashboardView({ snapshot, onNavigate, onOpenMailReply, r
           level: (snapshot.mailNeedsReplyCount ?? 0) > 0 ? "attention" : "normal",
         }}
         footer={"来源：企业邮箱 · 更新 " + headline.updatedAt + " · 回复在邮件客户端打开草稿，由您发送"}
+        solidText
       >
         {snapshot.mailItems.length === 0 ? (
           <PositiveState title="暂无待回复邮件" detail="未读邮件均已判定为阅读掌握类" />
@@ -270,6 +275,7 @@ export default function DashboardView({ snapshot, onNavigate, onOpenMailReply, r
             level: snapshot.metricItems.some((item) => item.isMissing) ? "attention" : "normal",
           }}
           footer={"来源：虹翼系统 · 更新 " + headline.updatedAt + " · 点击进入经营情况页"}
+          solidText
         >
           <div className="jv-home-metrics">
             {snapshot.metricItems.map((metric) => (

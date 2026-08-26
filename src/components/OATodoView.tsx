@@ -46,19 +46,24 @@ function DetailSheet({
           {analysis ? (
             <>
               <section className="jv-sheet-section">
-                <div className="jv-sheet-label"><FileText size={15} strokeWidth={2} />单据详情</div>
+                <div className="jv-sheet-label jv-sheet-label-detail"><FileText size={15} strokeWidth={2} />单据详情</div>
                 <div className="jv-body jv-sheet-text">{analysis.detail}</div>
               </section>
-              <section className="jv-sheet-section">
-                <div className="jv-sheet-label"><TriangleAlert size={15} strokeWidth={2} />风险点</div>
-                {analysis.riskPoints.map((risk, index) => (
-                  <div key={index} className="jv-body jv-sheet-text">
-                    {index + 1}. {risk}
-                  </div>
-                ))}
+              <section className="jv-sheet-section jv-sheet-section-risk">
+                <div className={"jv-sheet-label jv-sheet-label-risk jv-level-" + analysis.riskLevel}>
+                  <TriangleAlert size={15} strokeWidth={2} />风险点
+                </div>
+                <div className="jv-sheet-risks">
+                  {analysis.riskPoints.map((risk, index) => (
+                    <div key={index} className="jv-sheet-risk">
+                      <span className="jv-caption jv-sheet-risk-index">{index + 1}</span>
+                      <span className="jv-body jv-sheet-text">{risk}</span>
+                    </div>
+                  ))}
+                </div>
               </section>
               <section className="jv-sheet-section">
-                <div className="jv-sheet-label"><ListChecks size={15} strokeWidth={2} />审核建议</div>
+                <div className="jv-sheet-label jv-sheet-label-suggestion"><ListChecks size={15} strokeWidth={2} />审核建议</div>
                 <div className="jv-body jv-sheet-text">{analysis.suggestion}</div>
               </section>
             </>
@@ -68,39 +73,41 @@ function DetailSheet({
         </div>
         <div className="jv-oa-approval">
           <label className="jv-caption jv-muted" htmlFor="jv-oa-comment">审批意见</label>
-          <textarea
-            id="jv-oa-comment"
-            className="jv-body jv-oa-comment"
-            rows={3}
-            value={comment}
-            onChange={(event) => setComment(event.target.value)}
-            placeholder="输入审批意见"
-          />
-          <div className="jv-oa-approval-buttons">
-            <button
-              type="button"
-              className="jv-control jv-oa-approve"
-              title="同意：立即提交真实审批"
-              onClick={() => {
-                onApprove(item, comment);
-                onClose();
-              }}
-            >
-              <Check size={15} strokeWidth={2} />
-              同意
-            </button>
-            <button
-              type="button"
-              className="jv-control jv-oa-reject"
-              title="不同意/退回：立即提交真实审批"
-              onClick={() => {
-                onReject(item, comment);
-                onClose();
-              }}
-            >
-              <X size={15} strokeWidth={2} />
-              不同意
-            </button>
+          <div className="jv-oa-approval-row">
+            <textarea
+              id="jv-oa-comment"
+              className="jv-body jv-oa-comment"
+              rows={3}
+              value={comment}
+              onChange={(event) => setComment(event.target.value)}
+              placeholder="输入审批意见"
+            />
+            <div className="jv-oa-approval-buttons">
+              <button
+                type="button"
+                className="jv-control jv-oa-approve"
+                title="同意：立即提交真实审批"
+                onClick={() => {
+                  onApprove(item, comment);
+                  onClose();
+                }}
+              >
+                <Check size={15} strokeWidth={2} />
+                同意
+              </button>
+              <button
+                type="button"
+                className="jv-control jv-oa-reject"
+                title="不同意/退回：立即提交真实审批"
+                onClick={() => {
+                  onReject(item, comment);
+                  onClose();
+                }}
+              >
+                <X size={15} strokeWidth={2} />
+                不同意
+              </button>
+            </div>
           </div>
         </div>
       </div>
