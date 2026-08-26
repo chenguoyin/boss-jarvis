@@ -135,7 +135,7 @@ export default function SettingsView({
           label="正文字号"
           value={bodyFontSize}
           min={10}
-          max={20}
+          max={24}
           defaultValue={DEFAULT_BODY_FONT_SIZE}
           onChange={onBodyFontSizeChange}
         />
