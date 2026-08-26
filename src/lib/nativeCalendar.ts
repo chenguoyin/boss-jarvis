@@ -107,7 +107,7 @@ export function parseNativeCalendar(envelope: SkillEnvelope): NativeCalendarResu
   }));
   const summary = toRecord(raw.summary);
   const num = (value: unknown, fallback: number) => (typeof value === "number" ? value : fallback);
-  const fetchedAt = str(raw.fetchedAt) === "" ? "未获取" : str(raw.fetchedAt);
+  const fetchedAt = fullTime(str(raw.fetchedAt));
   return {
     date: str(raw.date, "未获取"),
     events,
