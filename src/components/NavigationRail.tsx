@@ -31,9 +31,8 @@ function NavButton({ title, icon: Icon, active, badge, onClick }: NavButtonProps
         data-active={active || undefined}
         data-hover={hovering && !active ? "" : undefined}
       />
-      <span className="jv-nav-btn-dot" />
       <Icon
-        size={15}
+        size={16}
         strokeWidth={active ? 2.2 : 1.8}
         className="jv-nav-btn-icon"
         data-active={active || undefined}

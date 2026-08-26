@@ -10,7 +10,7 @@ const expectations = [
   ["--jv-nav-w", "72px", "导航宽度"],
   ["--jv-nav-item", "52px", "导航热区（黄金参照源码事实）"],
   ["--jv-nav-active", "42px", "选中背景"],
-  ["--jv-nav-icon", "15px", "导航图标"],
+  ["--jv-nav-icon", "16px", "导航图标"],
   ["--jv-topbar-h", "60px", "顶栏高度"],
 ];
 

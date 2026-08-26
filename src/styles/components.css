@@ -62,24 +62,6 @@
   border: 1px solid var(--jv-stroke-white-17);
 }
 
-.jv-nav-btn-dot {
-  position: absolute;
-  z-index: 2;
-  right: -1px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--jv-blue);
-  opacity: 0;
-  transition: opacity 0.14s ease-out;
-}
-
-.jv-nav-btn[data-active] .jv-nav-btn-dot {
-  opacity: 1;
-}
-
 .jv-nav-btn-bg[data-hover] {
   background: color-mix(in srgb, var(--jv-text) 7%, transparent);
 }
