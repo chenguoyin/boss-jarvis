@@ -4,6 +4,8 @@ DerivedData/
 *.xcuserdata/
 *.xcuserstate
 *.DS_Store
+Thumbs.db
+desktop.ini
 *.env
 *.log
 *.exe

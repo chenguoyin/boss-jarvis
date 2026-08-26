@@ -1,7 +1,7 @@
 # boss-jarvis
 
 面向 BOSS 的单代码库 AI 工作台：Tauri 2 壳（Rust + React/TypeScript），一套代码同时产出 macOS 与 Windows 安装包。
-SwiftUI 原生版仅在迁移期保留于 `legacy/` 作为 1:1 黄金参照，验收通过后退役。
+SwiftUI 原生版已按人工终审退役删除；仓库仅保留一套 Tauri 2 壳。
 
 ## 架构
 
@@ -20,6 +20,7 @@ Tauri 2 单壳（一套代码，双端复用）
 - 老板驾驶舱：全局结论条、Top3 待办提醒、跨系统聚合行、经营速览、风险提示、待回复邮件。
 - 12 分区：驾驶舱、每日晨报、OA 待办、经营情况、资金费用、邮件、日历提醒、每周总结、Skill 管理、审计日志、确认中心（入口在 Skill 管理启停）、系统配置（顶栏齿轮）。
 - 数据全部来自本地 Skill（Playwright / AppleScript / Swift 采集），输出 JSON 到 `~/.boss-jarvis/data/`，壳层只读契约渲染，缺字段显示「未获取」。
+- 刷新即真实取数：各分区刷新只执行本分区 Skill；顶栏刷新执行全部取数任务。Rust 在每个 Skill 开始/结束时发 `skill-fetch-progress` 事件，顶栏与内容区实时显示逐项获取状态。
 
 ## 写操作规则
 
@@ -60,7 +61,8 @@ npm run tauri build      # 打安装包（macOS）
 
 ## 迁移状态
 
-Phase 0-4 已完成（壳层、契约链、12 视图、确认中心/写命令/配置），Phase 5 收敛进行中：
-SwiftUI vs Tauri 并排 1:1 比对通过后删除 `legacy/`。
+Phase 0-5 已完成（壳层、契约链、12 视图、确认中心/写命令/配置、收敛退役）；
+`legacy/` SwiftUI 金参照已删除，单代码库定稿。
 Phase T（尾段单独处理）：Windows 邮件/日历 Skill、Node sidecar、Windows CI、实机验收。
 详见 [docs/migration-plan.md](docs/migration-plan.md)。
+平台差异对照表见 [docs/platform-diff-matrix.md](docs/platform-diff-matrix.md)。
