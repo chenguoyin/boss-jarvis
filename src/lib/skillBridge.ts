@@ -95,3 +95,16 @@ export function readSkillEnv(): Promise<Record<string, string>> {
 export function writeSkillEnv(values: Record<string, string>): Promise<CommandOutcome> {
   return invoke<CommandOutcome>("write_skill_env", { values });
 }
+
+export interface LlmChatOutcome {
+  ok: boolean;
+  error: string;
+  message: Record<string, unknown>;
+}
+
+export function llmChat(
+  messages: Record<string, unknown>[],
+  tools: unknown[],
+): Promise<LlmChatOutcome> {
+  return invoke<LlmChatOutcome>("llm_chat", { messages, tools });
+}

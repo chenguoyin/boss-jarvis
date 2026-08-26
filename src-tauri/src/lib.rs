@@ -2,6 +2,7 @@ mod manifest;
 mod paths;
 mod skill_runtime;
 mod command_runtime;
+mod llm_runtime;
 
 /// 晨报产物由 daily-briefing 巡检写到 ~/.codex/workbench-reports/latest/，
 /// 壳层只读该文件，不解释巡检 stdout。
@@ -193,6 +194,25 @@ fn write_skill_env(values: std::collections::HashMap<String, String>) -> command
     command_runtime::write_skill_env(&values)
 }
 
+/// 助手模型调用：OpenAI 兼容 chat/completions；凭证从 skill-env 读取，不经过前端。
+#[tauri::command]
+async fn llm_chat(messages: Vec<serde_json::Value>, tools: Vec<serde_json::Value>) -> llm_runtime::LlmChatOutcome {
+    let env = command_runtime::read_skill_env();
+    let read = |key: &str| env.get(key).cloned().unwrap_or_default();
+    let model = {
+        let value = read("COMPANY_LLM_MODEL");
+        if value.is_empty() { "qwen3.7-plus".to_string() } else { value }
+    };
+    let client = llm_runtime::CompanyLlmClient {
+        base_url: read("COMPANY_LLM_BASE_URL"),
+        api_key: read("COMPANY_LLM_API_KEY"),
+        model,
+    };
+    client
+        .chat(llm_runtime::LlmChatArgs { messages, tools })
+        .await
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -213,7 +233,8 @@ pub fn run() {
             mark_mail_read,
             open_mail_reply,
             read_skill_env,
-            write_skill_env
+            write_skill_env,
+            llm_chat
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

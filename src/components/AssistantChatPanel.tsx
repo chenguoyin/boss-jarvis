@@ -1,14 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowUp, Eraser, Search, Sparkles, X } from "lucide-react";
+import { runAssistantTurn, type AssistantMessage, type AssistantRuntime } from "@/lib/assistantChat";
 
 interface Props {
+  runtime: AssistantRuntime;
   onClose: () => void;
-}
-
-interface ChatMessage {
-  id: number;
-  role: "user" | "assistant";
-  text: string;
 }
 
 const SUGGESTIONS = [
@@ -18,9 +14,11 @@ const SUGGESTIONS = [
   "我今天有什么日程？",
 ];
 
-export default function AssistantChatPanel({ onClose }: Props) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+export default function AssistantChatPanel({ runtime, onClose }: Props) {
+  const [messages, setMessages] = useState<AssistantMessage[]>([]);
   const [draft, setDraft] = useState("");
+  const [isBusy, setBusy] = useState(false);
+  const historyRef = useRef<Record<string, unknown>[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -35,18 +33,23 @@ export default function AssistantChatPanel({ onClose }: Props) {
 
   const send = (text: string) => {
     const question = text.trim();
-    if (question === "") return;
-    const id = Date.now();
-    setMessages((current) => [
-      ...current,
-      { id, role: "user", text: question },
-      {
-        id: id + 1,
-        role: "assistant",
-        text: "助手模型调用链还未接入 Tauri 壳：请先在「系统配置 → 模型调用」确认配置，接入后可从这里执行取数、页面跳转和回复草稿。",
-      },
-    ]);
+    if (question === "" || isBusy) return;
     setDraft("");
+    setMessages((current) => [...current, { id: Date.now(), role: "user", text: question }]);
+    setBusy(true);
+    void runAssistantTurn({
+      text: question,
+      history: historyRef.current,
+      runtime,
+      emit: (message) => setMessages((current) => [...current, message]),
+      onBusyChange: setBusy,
+    }).catch(() => {
+      setMessages((current) => [
+        ...current,
+        { id: Date.now(), role: "assistant", text: "抱歉，这次没能完成：本地调用链异常。" },
+      ]);
+      setBusy(false);
+    });
     inputRef.current?.focus();
   };
 
@@ -58,7 +61,15 @@ export default function AssistantChatPanel({ onClose }: Props) {
           <span className="jv-title jv-assistant-title">Jarvis 助手</span>
           <span className="jv-caption jv-faint">可执行 Skill 取数与页面跳转 · Esc 关闭</span>
           <span className="jv-assistant-actions">
-            <button type="button" className="jv-icon-plain" title="清空对话" onClick={() => setMessages([])}>
+            <button
+              type="button"
+              className="jv-icon-plain"
+              title="清空对话"
+              onClick={() => {
+                setMessages([]);
+                historyRef.current = [];
+              }}
+            >
               <Eraser size={13} strokeWidth={2} />
             </button>
             <button type="button" className="jv-icon-plain" title="关闭" onClick={onClose}>
@@ -85,7 +96,8 @@ export default function AssistantChatPanel({ onClose }: Props) {
               </div>
             </div>
           ) : (
-            messages.map((message) => (
+            <>
+            {messages.map((message) => (
               <div
                 key={message.id}
                 className={
@@ -95,7 +107,13 @@ export default function AssistantChatPanel({ onClose }: Props) {
               >
                 <span className="jv-body">{message.text}</span>
               </div>
-            ))
+            ))}
+            {isBusy && (
+              <div className="jv-assistant-message jv-assistant-message-bot">
+                <span className="jv-body jv-muted">正在思考或获取数据…</span>
+              </div>
+            )}
+            </>
           )}
         </div>
         <form
@@ -111,12 +129,13 @@ export default function AssistantChatPanel({ onClose }: Props) {
             value={draft}
             placeholder="问 Jarvis，回车发送"
             onChange={(event) => setDraft(event.target.value)}
+            disabled={isBusy}
           />
           <button
             type="submit"
             className="jv-icon-plain jv-assistant-send"
             title="发送（回车）"
-            disabled={draft.trim() === ""}
+            disabled={isBusy || draft.trim() === ""}
           >
             <ArrowUp size={18} strokeWidth={2} />
           </button>

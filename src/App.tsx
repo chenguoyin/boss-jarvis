@@ -6,10 +6,11 @@ import SkillDataView from "./components/SkillDataView";
 import ConfirmationCenterView from "./components/ConfirmationCenterView";
 import SettingsView from "./components/SettingsView";
 import AssistantChatPanel from "./components/AssistantChatPanel";
+import { parseCompanyMail } from "./lib/mail";
 import AboutDialog from "./components/AboutDialog";
 import HomeModuleCustomizer from "./components/HomeModuleCustomizer";
 import { RefreshCw, SquareDashed } from "lucide-react";
-import { sectionById } from "./lib/sections";
+import { appSections, confirmationSection, sectionById, settingsSection } from "./lib/sections";
 import { useSkillData } from "./hooks/useSkillData";
 import {
   approveTodo,
@@ -25,7 +26,7 @@ import {
   toggleMaximize,
 } from "./lib/skillBridge";
 import { parseOATodo } from "./lib/oaTodo";
-import { parseCompanyMail } from "./lib/mail";
+import type { AssistantRuntime } from "./lib/assistantChat";
 import {
   createSkillToggleAction,
   pendingOnly,
@@ -338,6 +339,62 @@ export default function App() {
     });
   }, [replyingIds]);
 
+  const assistantRuntimeRef = useRef<AssistantRuntime | null>(null);
+
+  const runSkillForAssistant = useCallback(async (skill: string) => {
+    try {
+      await refresh([skill]);
+      setReloadCount((count) => count + 1);
+      return true;
+    } catch {
+      return false;
+    }
+  }, [refresh]);
+
+  const replyMailForAssistant = useCallback(
+    async (mailId: number): Promise<{ ok: boolean; summary: string } | null> => {
+      const text = await readSkillData("company-mail");
+      const envelope = text;
+      const result = parseCompanyMail(envelope);
+      const message = result?.items.find((item) => item.id === mailId);
+      if (!message) return null;
+      return new Promise((resolve) => {
+        setReplyingIds((current) => new Set(current).add(message.id));
+        void openMailReply({
+          to: message.sender,
+          subject: message.subject,
+          bodySummary: message.bodySummary,
+          replyBasis: message.replyBasis,
+          sender: message.sender,
+        })
+          .catch((error: unknown) => ({ ok: false, summary: `命令执行失败：${String(error)}` }))
+          .then((outcome) => {
+            setReplyingIds((current) => {
+              const next = new Set(current);
+              next.delete(message.id);
+              return next;
+            });
+            setMailReplyStatus(outcome.summary);
+            resolve({ ok: outcome.ok, summary: outcome.summary });
+          });
+      });
+    },
+    [],
+  );
+
+  const assistantRuntime: AssistantRuntime = {
+    sections: [...appSections.map((s) => s.title), settingsSection.title, confirmationSection.title],
+    skills: ["oa-todo", "reminder-center", "company-mail", "native-calendar", "skill-manager", "daily-briefing", "boss-cockpit", "hongyi-today-metrics", "hongyi-business-overview", "weekly-summary"],
+    currentSection: section?.title ?? "驾驶舱",
+    onOpenSection: (target) => {
+      const match = [ ...appSections, settingsSection, confirmationSection ].find((s) => s.title === target);
+      if (match) setSectionId(match.id);
+    },
+    onRunSkill: runSkillForAssistant,
+    onReplyMail: replyMailForAssistant,
+  };
+  assistantRuntimeRef.current = assistantRuntime;
+
   const handleToggleSkill = useCallback((skill: ManagedSkill) => {
     const action = createSkillToggleAction(skill);
     if (actions.some((existing) => existing.skillId === skill.id && existing.state === "pending")) return;
@@ -480,7 +537,7 @@ export default function App() {
           )}
         </main>
       </div>
-      {assistantOpen && <AssistantChatPanel onClose={() => setAssistantOpen(false)} />}
+      {assistantOpen && <AssistantChatPanel runtime={assistantRuntimeRef.current!} onClose={() => setAssistantOpen(false)} />}
       {aboutOpen && <AboutDialog onClose={() => setAboutOpen(false)} />}
       {customizerOpen && (
         <HomeModuleCustomizer
