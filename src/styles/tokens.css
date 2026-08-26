@@ -45,6 +45,8 @@
   --jv-nav-active-b: #080809;
   --jv-nav-active-fg: #ffffff;
   --jv-nav-active-stroke: rgba(255, 255, 255, 0.17);
+  --jv-stroke-white-14: rgba(255, 255, 255, 0.14);
+  --jv-shadow-about-ok: 0 3px 6px rgba(0, 0, 0, 0.18);
 
   /* 字号：默认值，运行时由 config.ts 依据用户配置覆盖 */
   --jv-fs-title: 14px;
@@ -127,6 +129,9 @@
   --jv-nav-active-b: #080809;
   --jv-nav-active-fg: #ffffff;
   --jv-nav-active-stroke: rgba(255, 255, 255, 0.17);
+
+  --jv-stroke-white-14: rgba(255, 255, 255, 0.14);
+  --jv-shadow-about-ok: 0 3px 6px rgba(0, 0, 0, 0.18);
 
   color-scheme: dark;
 }

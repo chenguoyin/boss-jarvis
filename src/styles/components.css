@@ -2185,10 +2185,19 @@
 }
 
 .jv-about-ok {
-  min-height: 34px;
-  margin-top: 16px;
-  padding: 0 28px;
+  width: 64px;
+  height: 28px;
+  margin-top: 24px;
   cursor: pointer;
+  color: var(--jv-fixed-white);
+  background: linear-gradient(
+    to bottom,
+    var(--jv-nav-active-a),
+    var(--jv-nav-active-b)
+  );
+  border: 1px solid var(--jv-stroke-white-14);
+  border-radius: var(--jv-radius-pill);
+  box-shadow: var(--jv-shadow-about-ok);
 }
 
 /* ---------- 首页模块自定义 ---------- */
