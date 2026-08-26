@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowUp, Eraser, Search, Sparkles, X } from "lucide-react";
+import { Eraser, Search, SendHorizonal, Sparkles, X, Zap } from "lucide-react";
 import { runAssistantTurn, type AssistantMessage, type AssistantRuntime } from "@/lib/assistantChat";
 
 interface Props {
@@ -104,22 +104,30 @@ export default function AssistantChatPanel({ runtime, onClose }: Props) {
             </div>
           ) : (
             <>
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={
-                  "jv-assistant-message " +
-                  (message.role === "user" ? "jv-assistant-message-user" : "jv-assistant-message-bot")
-                }
-              >
-                <span className="jv-body">{message.text}</span>
-              </div>
-            ))}
-            {isBusy && (
-              <div className="jv-assistant-message jv-assistant-message-bot">
-                <span className="jv-body jv-muted">正在思考或获取数据…</span>
-              </div>
-            )}
+              {messages.map((message) =>
+                message.role === "tool" ? (
+                  <div key={message.id} className="jv-assistant-tool">
+                    <Zap size={13} strokeWidth={2} />
+                    <span className="jv-caption">{message.text}</span>
+                  </div>
+                ) : (
+                  <div
+                    key={message.id}
+                    className={
+                      "jv-assistant-message " +
+                      (message.role === "user" ? "jv-assistant-message-user" : "jv-assistant-message-bot")
+                    }
+                  >
+                    <span className="jv-body">{message.text}</span>
+                  </div>
+                ),
+              )}
+              {isBusy && (
+                <div className="jv-assistant-busy">
+                  <span className="jv-assistant-spinner" aria-hidden="true" />
+                  <span className="jv-caption jv-muted">正在思考或获取数据…</span>
+                </div>
+              )}
             </>
           )}
         </div>
@@ -144,7 +152,7 @@ export default function AssistantChatPanel({ runtime, onClose }: Props) {
             title="发送（回车）"
             disabled={isBusy || draft.trim() === ""}
           >
-            <ArrowUp size={18} strokeWidth={2} />
+            <SendHorizonal size={22} strokeWidth={1.8} />
           </button>
         </form>
       </section>
