@@ -77,7 +77,6 @@ export default function NavigationRail({
           ))}
         </div>
       </div>
-      <div className="jv-nav-spacer" />
       <button
         type="button"
         className="jv-nav-brand"

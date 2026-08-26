@@ -117,10 +117,6 @@
   border: 1px solid var(--jv-stroke-white-82);
 }
 
-.jv-nav-spacer {
-  flex: 1;
-}
-
 .jv-nav-brand {
   width: 48px;
   height: 48px;
