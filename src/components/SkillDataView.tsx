@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { RefreshCw, SquareDashed } from "lucide-react";
 import type { AppSection } from "@/lib/sections";
 import { isMissing } from "@/lib/contract";
@@ -92,34 +93,45 @@ export default function SkillDataView({
   skills,
   homeModules,
 }: Props) {
+  // 数据只在信封变化时解析一次；点击/悬停/弹层不再重复解析大体量契约 JSON。
+  const parsed = useMemo(() => {
+    const skillManagerEnvelope = envelopes["skill-manager"] ?? null;
+    const skillManager = skillManagerEnvelope === null
+      ? null
+      : parseSkillManager(skillManagerEnvelope as import("@/lib/contract").SkillEnvelope);
+    const calendarEnvelope = envelopes["native-calendar"] ?? null;
+    const nativeCalendar = calendarEnvelope === null
+      ? null
+      : parseNativeCalendar(calendarEnvelope as import("@/lib/contract").SkillEnvelope);
+    const briefing = briefingEnvelope === null ? null : parseDailyBriefing(briefingEnvelope);
+    const weeklySummary = parseWeeklySummary(weekly.raw);
+    const hongyiSnapshot = buildHongyiSnapshot(
+      envelopes["hongyi-today-metrics"] as import("@/lib/contract").SkillEnvelope | null ?? null,
+      envelopes["hongyi-business-overview"] as import("@/lib/contract").SkillEnvelope | null ?? null,
+    );
+    const oaTodo = parseOATodo(envelopes["oa-todo"] as import("@/lib/contract").SkillEnvelope | null ?? null);
+    const parsedMail = parseCompanyMail(envelopes["company-mail"] as import("@/lib/contract").SkillEnvelope | null ?? null);
+    const reminders = parseReminderCenter(envelopes["reminder-center"] as import("@/lib/contract").SkillEnvelope | null ?? null);
+    return { skillManager, nativeCalendar, briefing, weeklySummary, hongyiSnapshot, oaTodo, parsedMail, reminders };
+  }, [envelopes, briefingEnvelope, weekly.raw]);
+
+  const companyMail = parsed.parsedMail === null ? null : hideMailMessages(parsed.parsedMail, mail.hiddenIds);
+  const { skillManager, nativeCalendar, briefing, weeklySummary, hongyiSnapshot, oaTodo } = parsed;
+  const dashboardSnapshot = useMemo(
+    () => buildDashboardSnapshot({
+      reminders: parsed.reminders,
+      oaTodo: parsed.oaTodo,
+      mail: companyMail,
+      calendar: parsed.nativeCalendar,
+      briefing: parsed.briefing,
+      hongyi: parsed.hongyiSnapshot,
+    }),
+    [parsed, companyMail],
+  );
+
   const loaded = section.skills
     .map((skill) => ({ skill, envelope: envelopes[skill] }))
     .filter((entry) => entry.envelope !== undefined);
-  const skillManager = envelopes["skill-manager"]
-    ? parseSkillManager(envelopes["skill-manager"] as import("@/lib/contract").SkillEnvelope)
-    : null;
-  const nativeCalendar = envelopes["native-calendar"]
-    ? parseNativeCalendar(envelopes["native-calendar"] as import("@/lib/contract").SkillEnvelope)
-    : null;
-  const briefing = briefingEnvelope ? parseDailyBriefing(briefingEnvelope) : null;
-  const weeklySummary = parseWeeklySummary(weekly.raw);
-  const hongyiSnapshot = buildHongyiSnapshot(
-    envelopes["hongyi-today-metrics"] as import("@/lib/contract").SkillEnvelope | null ?? null,
-    envelopes["hongyi-business-overview"] as import("@/lib/contract").SkillEnvelope | null ?? null,
-  );
-  const oaTodo = parseOATodo(envelopes["oa-todo"] as import("@/lib/contract").SkillEnvelope | null ?? null);
-  const parsedMail = parseCompanyMail(envelopes["company-mail"] as import("@/lib/contract").SkillEnvelope | null ?? null);
-  const companyMail = parsedMail === null ? null : hideMailMessages(parsedMail, mail.hiddenIds);
-  const reminders = parseReminderCenter(envelopes["reminder-center"] as import("@/lib/contract").SkillEnvelope | null ?? null);
-  const nativeCalendarResult = nativeCalendar;
-  const dashboardSnapshot = buildDashboardSnapshot({
-    reminders,
-    oaTodo,
-    mail: companyMail,
-    calendar: nativeCalendarResult,
-    briefing,
-    hongyi: hongyiSnapshot,
-  });
 
   return (
     <div className="jv-placeholder">

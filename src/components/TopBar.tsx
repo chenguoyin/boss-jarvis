@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   AlertTriangle,
   ChevronRight,
@@ -25,7 +26,6 @@ interface Props {
   failures: { skill: string; error: string }[];
   lastRefreshedAt: number | null;
   nextAutoRefreshAt: number | null;
-  nowTick: number;
   onOpenAssistant: () => void;
   onToggleMaximize: () => void;
   onOpenCustomizer: () => void;
@@ -53,11 +53,18 @@ export default function TopBar({
   failures,
   lastRefreshedAt,
   nextAutoRefreshAt,
-  nowTick,
   onOpenAssistant,
   onToggleMaximize,
   onOpenCustomizer,
 }: Props) {
+  const [nowTick, setNowTick] = useState(() => Date.now());
+
+  // 倒计时只影响顶栏提示，避免每秒触发整个应用重渲染。
+  useEffect(() => {
+    if (nextAutoRefreshAt === null) return;
+    const timer = window.setInterval(() => setNowTick(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [nextAutoRefreshAt]);
   const section = sectionById(sectionId);
   const SectionIcon = section?.icon;
   const showsCustomize = sectionId === "dashboard";

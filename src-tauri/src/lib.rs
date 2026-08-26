@@ -7,7 +7,14 @@ mod llm_runtime;
 /// 晨报产物由 daily-briefing 巡检写到 ~/.codex/workbench-reports/latest/，
 /// 壳层只读该文件，不解释巡检 stdout。
 #[tauri::command]
-fn read_daily_briefing_report() -> Option<String> {
+async fn read_daily_briefing_report() -> Option<String> {
+    tauri::async_runtime::spawn_blocking(read_daily_briefing_report_sync)
+        .await
+        .ok()
+        .flatten()
+}
+
+fn read_daily_briefing_report_sync() -> Option<String> {
     let path = paths::home_dir()?
         .join(".codex")
         .join("workbench-reports")
@@ -26,15 +33,15 @@ pub fn data_dir_for_integration() -> std::path::PathBuf {
 }
 
 pub fn read_daily_briefing_report_for_integration() -> Option<String> {
-    read_daily_briefing_report()
+    read_daily_briefing_report_sync()
 }
 
 pub fn weekly_summary_dates_for_integration() -> Vec<String> {
-    weekly_summary_dates()
+    weekly_summary_dates_sync()
 }
 
 pub fn read_weekly_summary_archive_for_integration(date: String) -> Option<String> {
-    read_weekly_summary_archive(date)
+    read_weekly_summary_archive_sync(date)
 }
 
 pub fn toggle_skill_for_integration(skill_id: &str, enable: bool) -> command_runtime::CommandOutcome {
@@ -50,8 +57,12 @@ pub fn uninstall_skill_for_integration(skill_id: &str) -> command_runtime::Comma
 }
 
 #[tauri::command]
-fn data_dir() -> String {
-    skill_runtime::data_dir().to_string_lossy().into_owned()
+async fn data_dir() -> String {
+    tauri::async_runtime::spawn_blocking(|| {
+        skill_runtime::data_dir().to_string_lossy().into_owned()
+    })
+    .await
+    .unwrap_or_default()
 }
 
 /// 顶栏“放大/还原”：等价 legacy 的 NSApp.keyWindow.zoom(nil)。
@@ -82,9 +93,13 @@ async fn select_skill_directory(window: tauri::WebviewWindow) -> Option<String> 
 }
 
 #[tauri::command]
-fn fetch_skill(skill: String) -> skill_runtime::FetchOutcome {
-    let manifest = manifest::load();
-    skill_runtime::fetch_skill(&manifest, &skill)
+async fn fetch_skill(skill: String) -> Result<skill_runtime::FetchOutcome, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let manifest = manifest::load();
+        skill_runtime::fetch_skill(&manifest, &skill)
+    })
+    .await
+    .map_err(|error| error.to_string())
 }
 
 #[tauri::command]
@@ -118,14 +133,25 @@ async fn fetch_all_skills() -> Result<Vec<skill_runtime::FetchOutcome>, String> 
 }
 
 #[tauri::command]
-fn read_skill_data(skill: String) -> Option<String> {
-    let path = skill_runtime::data_dir().join(format!("{}.json", skill));
-    std::fs::read_to_string(path).ok()
+async fn read_skill_data(skill: String) -> Option<String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let path = skill_runtime::data_dir().join(format!("{skill}.json"));
+        std::fs::read_to_string(path).ok()
+    })
+    .await
+    .ok()
+    .flatten()
 }
 
 /// 历史周报存档：~/.boss-jarvis/data/weekly-summary/yyyy-MM-dd.json，倒序。
 #[tauri::command]
-fn weekly_summary_dates() -> Vec<String> {
+async fn weekly_summary_dates() -> Vec<String> {
+    tauri::async_runtime::spawn_blocking(weekly_summary_dates_sync)
+        .await
+        .unwrap_or_default()
+}
+
+fn weekly_summary_dates_sync() -> Vec<String> {
     let dir = skill_runtime::data_dir().join("weekly-summary");
     let Ok(entries) = std::fs::read_dir(dir) else {
         return Vec::new();
@@ -146,7 +172,14 @@ fn weekly_summary_dates() -> Vec<String> {
 }
 
 #[tauri::command]
-fn read_weekly_summary_archive(date: String) -> Option<String> {
+async fn read_weekly_summary_archive(date: String) -> Option<String> {
+    tauri::async_runtime::spawn_blocking(move || read_weekly_summary_archive_sync(date))
+        .await
+        .ok()
+        .flatten()
+}
+
+fn read_weekly_summary_archive_sync(date: String) -> Option<String> {
     if date.len() != 10 || !date.bytes().all(|b| b.is_ascii_digit() || b == b'-') {
         return None;
     }
@@ -156,7 +189,13 @@ fn read_weekly_summary_archive(date: String) -> Option<String> {
 
 /// 审计留痕：~/.codex/workbench-audit/yyyy-MM-dd/audit.jsonl，只读。
 #[tauri::command]
-fn audit_log_dates() -> Vec<String> {
+async fn audit_log_dates() -> Vec<String> {
+    tauri::async_runtime::spawn_blocking(audit_log_dates_sync)
+        .await
+        .unwrap_or_default()
+}
+
+fn audit_log_dates_sync() -> Vec<String> {
     let root = match paths::home_dir() {
         Some(home) => home.join(".codex").join("workbench-audit"),
         None => return Vec::new(),
@@ -179,7 +218,14 @@ fn audit_log_dates() -> Vec<String> {
 }
 
 #[tauri::command]
-fn read_audit_log(date: String) -> Option<String> {
+async fn read_audit_log(date: String) -> Option<String> {
+    tauri::async_runtime::spawn_blocking(move || read_audit_log_sync(date))
+        .await
+        .ok()
+        .flatten()
+}
+
+fn read_audit_log_sync(date: String) -> Option<String> {
     if date.len() != 10 || !date.bytes().all(|byte| byte.is_ascii_digit() || byte == b'-') {
         return None;
     }
@@ -252,13 +298,17 @@ async fn open_mail_reply(
 }
 
 #[tauri::command]
-fn read_skill_env() -> std::collections::HashMap<String, String> {
-    command_runtime::read_skill_env()
+async fn read_skill_env() -> std::collections::HashMap<String, String> {
+    tauri::async_runtime::spawn_blocking(command_runtime::read_skill_env)
+        .await
+        .unwrap_or_default()
 }
 
 #[tauri::command]
-fn write_skill_env(values: std::collections::HashMap<String, String>) -> command_runtime::CommandOutcome {
-    command_runtime::write_skill_env(&values)
+async fn write_skill_env(values: std::collections::HashMap<String, String>) -> Result<command_runtime::CommandOutcome, String> {
+    tauri::async_runtime::spawn_blocking(move || command_runtime::write_skill_env(&values))
+        .await
+        .map_err(|error| error.to_string())
 }
 
 /// 助手模型调用：OpenAI 兼容 chat/completions；凭证从 skill-env 读取，不经过前端。

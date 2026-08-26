@@ -97,7 +97,6 @@ export default function App() {
   const [autoRefreshInterval, setAutoRefreshIntervalState] = useState(loadAutoRefreshInterval);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<number | null>(null);
   const [nextAutoRefreshAt, setNextAutoRefreshAt] = useState<number | null>(null);
-  const [nowTick, setNowTick] = useState(() => Date.now());
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [customizerOpen, setCustomizerOpen] = useState(false);
@@ -179,12 +178,6 @@ export default function App() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
-
-  // 自动刷新：每秒重算倒计时文案；到点全量执行 Skill。
-  useEffect(() => {
-    const timer = window.setInterval(() => setNowTick(Date.now()), 1000);
-    return () => window.clearInterval(timer);
   }, []);
 
   useEffect(() => {
@@ -470,7 +463,6 @@ export default function App() {
           failures={failures}
           lastRefreshedAt={lastRefreshedAt}
           nextAutoRefreshAt={nextAutoRefreshAt}
-          nowTick={nowTick}
           onOpenAssistant={() => setAssistantOpen(true)}
           onToggleMaximize={() => {
             void toggleMaximize();
