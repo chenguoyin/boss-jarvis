@@ -3,6 +3,13 @@ import { formatDateTime } from "./datetime";
 
 export type OARiskLevel = "urgent" | "attention" | "normal" | "missing";
 
+export const OA_RISK_TITLES: Record<OARiskLevel, string> = {
+  urgent: "红色风险",
+  attention: "黄色关注",
+  normal: "正常",
+  missing: "未获取",
+};
+
 export interface OATodoAnalysis {
   priority: string;
   priorityLabel: string;

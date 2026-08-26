@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Check, FileText, ListChecks, TriangleAlert, X } from "lucide-react";
-import type { OATodoItem, OATodoResult } from "@/lib/oaTodo";
+import { OA_RISK_TITLES, type OATodoItem, type OATodoResult } from "@/lib/oaTodo";
 
 interface Props {
   result: OATodoResult | null;
@@ -173,8 +173,11 @@ export default function OATodoView({ result, onApprove, onReject, approvalStatus
               <span className="jv-caption">{index + 1}</span>
               <span className="jv-body jv-oa-title">{item.title}</span>
               <span className="jv-caption">{item.analysis?.priorityLabel ?? "未分析"}</span>
-              <span className={`jv-caption jv-oa-risk jv-level-${item.analysis?.riskLevel ?? "missing"}`}>
-                {item.analysis ? (item.analysis.riskLevel === "missing" ? "未获取" : item.analysis.riskLevel) : "未分析"}
+              <span
+                className={`jv-caption jv-oa-risk jv-level-${item.analysis?.riskLevel ?? "missing"}`}
+                title={item.analysis ? item.analysis.riskPoints.join(" / ") : "未分析"}
+              >
+                {item.analysis ? OA_RISK_TITLES[item.analysis.riskLevel] : "未分析"}
               </span>
               <span className="jv-caption jv-oa-suggestion">{item.analysis?.suggestion ?? "审批前核验详情和附件"}</span>
               <span className="jv-caption">{item.source || "未获取"}</span>

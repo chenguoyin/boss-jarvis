@@ -1,5 +1,5 @@
 import { CreditCard } from "lucide-react";
-import { filterExpenseItems, type OATodoResult } from "@/lib/oaTodo";
+import { filterExpenseItems, OA_RISK_TITLES, type OATodoResult } from "@/lib/oaTodo";
 
 interface Props {
   result: OATodoResult | null;
@@ -47,8 +47,11 @@ export default function ExpenseTodoView({ result }: Props) {
                   {item.time !== "" && <> · {item.time}</>}
                 </div>
               </div>
-              <span className={`jv-caption jv-oa-risk jv-level-${item.analysis?.riskLevel ?? "missing"}`}>
-                {item.analysis?.priorityLabel ?? "未分析"}
+              <span
+                className={`jv-caption jv-oa-risk jv-level-${item.analysis?.riskLevel ?? "missing"}`}
+                title={item.analysis ? item.analysis.riskPoints.join(" / ") : "未分析"}
+              >
+                {item.analysis ? OA_RISK_TITLES[item.analysis.riskLevel] : "未分析"}
               </span>
             </div>
           ))}
