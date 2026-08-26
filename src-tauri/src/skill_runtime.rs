@@ -5,6 +5,7 @@ use std::panic::AssertUnwindSafe;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::mpsc;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 const FETCH_TIMEOUT_SECS: u64 = 150;
 const FETCH_CONCURRENCY: usize = 4;
@@ -50,6 +51,15 @@ pub fn build_environment() -> HashMap<String, String> {
     let separator: &str = if cfg!(windows) { ";" } else { ":" };
     let path = env.get("PATH").cloned().unwrap_or_default();
     let mut parts: Vec<String> = path.split(separator).map(|s| s.to_string()).collect();
+    // 绿色版优先用 exe 同目录的 node.exe，最终用户无需单独安装 Node。
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(parent) = exe.parent() {
+            let dir = parent.to_string_lossy().into_owned();
+            if !parts.iter().any(|x| x == &dir) {
+                parts.insert(0, dir);
+            }
+        }
+    }
     #[cfg(not(target_os = "windows"))]
     let extra = [
         "/usr/local/bin",
@@ -71,6 +81,19 @@ pub fn build_environment() -> HashMap<String, String> {
         "BOSS_JARVIS_DATA_DIR".to_string(),
         data_dir().to_string_lossy().into_owned(),
     );
+    // Windows 绿色包把 Playwright 浏览器放在 exe 同级 .playwright-browsers，
+    // 脚本按 PLAYWRIGHT_BROWSERS_PATH 离线定位，无需首次联网下载 Chromium。
+    #[cfg(target_os = "windows")]
+    {
+        if let Ok(exe) = std::env::current_exe() {
+            if let Some(parent) = exe.parent() {
+                env.insert(
+                    "PLAYWRIGHT_BROWSERS_PATH".to_string(),
+                    parent.join(".playwright-browsers").to_string_lossy().into_owned(),
+                );
+            }
+        }
+    }
     env
 }
 
@@ -85,6 +108,21 @@ fn stop_process(pid: i32, kill: bool) {
 #[cfg(windows)]
 fn stop_process(_pid: u32, _kill: bool) {
     // Windows 侧 Phase T 用 taskkill /T 补齐；当前主路径不依赖。
+}
+
+#[cfg(windows)]
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+/// GUI 进程直接 spawn 控制台子系统程序（如 node.exe）时，Windows 会为其新开
+/// 一个控制台窗口。统一加 CREATE_NO_WINDOW，让 Skill 在后台无窗口运行。
+pub fn hide_child_console(command: &mut Command) {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
+    #[cfg(not(windows))]
+    let _ = command;
 }
 
 /// 带超时执行；超时先 TERM 后 KILL，避免脚本挂起时界面永远转圈。
@@ -105,6 +143,7 @@ pub fn run_with_timeout(
     for (k, v) in &env {
         command.env(k, v);
     }
+    hide_child_console(&mut command);
 
     let mut child = match command.spawn() {
         Ok(c) => c,
@@ -194,7 +233,52 @@ pub struct FetchOutcome {
     pub error: String,
 }
 
+/// 取数实时进度：每个 Skill 开始/结束时发一次，壳层用于逐项状态展示。
+#[derive(Clone, Serialize)]
+pub struct FetchProgress {
+    pub skill: String,
+    pub label: String,
+    pub phase: &'static str,
+}
+
+pub type ProgressCallback = Arc<dyn Fn(FetchProgress) + Send + Sync>;
+
+fn emit_progress(
+    progress: &Option<ProgressCallback>,
+    skill: &str,
+    label: &str,
+    phase: &'static str,
+) {
+    if let Some(callback) = progress {
+        callback(FetchProgress {
+            skill: skill.to_string(),
+            label: label.to_string(),
+            phase,
+        });
+    }
+}
+
 pub fn fetch_skill(manifest: &crate::manifest::Manifest, id: &str) -> FetchOutcome {
+    fetch_skill_tracked(manifest, id, None)
+}
+
+pub fn fetch_skill_tracked(
+    manifest: &crate::manifest::Manifest,
+    id: &str,
+    progress: Option<ProgressCallback>,
+) -> FetchOutcome {
+    let label = manifest
+        .resolve(id)
+        .map(|(_, display, _)| display)
+        .unwrap_or_else(|| id.to_string());
+    emit_progress(&progress, id, &label, "running");
+    let outcome = fetch_skill_inner(manifest, id);
+    let phase = if outcome.ok { "done" } else { "failed" };
+    emit_progress(&progress, id, &label, phase);
+    outcome
+}
+
+fn fetch_skill_inner(manifest: &crate::manifest::Manifest, id: &str) -> FetchOutcome {
     let Some((skill, _display, resolution)) = manifest.resolve(id) else {
         return FetchOutcome {
             skill: id.to_string(),
@@ -278,8 +362,27 @@ pub fn fetch_skill(manifest: &crate::manifest::Manifest, id: &str) -> FetchOutco
 
 /// 并发取数：保持传入 id 顺序返回；单任务异常被隔离为该 Skill 的失败结果，不拖垮整批。
 pub fn fetch_skills(manifest: &crate::manifest::Manifest, ids: &[String]) -> Vec<FetchOutcome> {
+    fetch_skills_tracked(manifest, ids, None)
+}
+
+pub fn fetch_skills_tracked(
+    manifest: &crate::manifest::Manifest,
+    ids: &[String],
+    progress: Option<ProgressCallback>,
+) -> Vec<FetchOutcome> {
+    // 批次开始先广播排队态（含中文名），壳层可立即展示完整清单。
+    for id in ids {
+        let label = manifest
+            .resolve(id)
+            .map(|(_, display, _)| display)
+            .unwrap_or_else(|| id.clone());
+        emit_progress(&progress, id, &label, "pending");
+    }
     if ids.len() <= 1 {
-        return ids.iter().map(|id| fetch_skill(manifest, id)).collect();
+        return ids
+            .iter()
+            .map(|id| fetch_skill_tracked(manifest, id, progress.clone()))
+            .collect();
     }
     let pool = rayon::ThreadPoolBuilder::new()
         .num_threads(FETCH_CONCURRENCY)
@@ -293,7 +396,9 @@ pub fn fetch_skills(manifest: &crate::manifest::Manifest, ids: &[String]) -> Vec
     ids.iter()
         .map(|id| {
             pool.install(|| {
-                std::panic::catch_unwind(AssertUnwindSafe(|| fetch_skill(manifest, id)))
+                std::panic::catch_unwind(AssertUnwindSafe(|| {
+                    fetch_skill_tracked(manifest, id, progress.clone())
+                }))
                     .unwrap_or_else(|_| FetchOutcome {
                         skill: id.clone(),
                         ok: false,
@@ -453,6 +558,7 @@ fn record_audit_failure(skill: &str, error: &str) {
         .stdin(Stdio::piped())
         .stdout(Stdio::null())
         .stderr(Stdio::null());
+    hide_child_console(&mut command);
     for (k, v) in &env {
         command.env(k, v);
     }

@@ -1,10 +1,9 @@
-import { Eye, Link, RefreshCw, Timer, TriangleAlert, Zap } from "lucide-react";
+import { Eye, Link, Timer, TriangleAlert, Zap } from "lucide-react";
 import type { DailyBriefing } from "@/lib/dailyBriefing";
 
 interface Props {
   briefing: DailyBriefing | null;
   isRunning: boolean;
-  onRun: () => void;
 }
 
 const kpis = [
@@ -20,7 +19,7 @@ const sections = [
   { key: "watchItems", label: "持续观察", icon: Eye, level: "normal" },
 ] as const;
 
-export default function BriefingView({ briefing, isRunning, onRun }: Props) {
+export default function BriefingView({ briefing, isRunning }: Props) {
   if (briefing === null) {
     return (
       <div className="jv-card">
@@ -42,9 +41,6 @@ export default function BriefingView({ briefing, isRunning, onRun }: Props) {
           </div>
         </div>
         {isRunning && <span className="jv-caption jv-muted">正在生成每日晨报…</span>}
-        <button type="button" className="jv-icon-plain" title="立即运行 daily-briefing 巡检" onClick={onRun} disabled={isRunning}>
-          <RefreshCw size={15} strokeWidth={2} className={isRunning ? "jv-refresh-spin" : undefined} />
-        </button>
       </div>
 
       <div className="jv-briefing-kpis">

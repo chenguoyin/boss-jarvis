@@ -297,7 +297,7 @@ export default function DashboardView({
             <span className="jv-caption jv-muted">{headline.statusText}</span>
             <span className="jv-home-verdict-time">数据更新于 {headline.updatedAt}</span>
           </div>
-          <div className="jv-home-headline">{headline.text}</div>
+          <div className="jv-title jv-home-headline">{headline.text}</div>
           <div className="jv-home-chips">
             {headline.chips.map((chip) => (
               <span key={chip.label} className={"jv-caption jv-home-chip jv-level-" + chip.level}>

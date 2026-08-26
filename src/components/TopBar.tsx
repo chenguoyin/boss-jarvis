@@ -14,6 +14,7 @@ import ThemePicker from "./ThemePicker";
 import { sectionById } from "@/lib/sections";
 import type { Theme } from "@/lib/config";
 import { formatDateTime } from "@/lib/datetime";
+import type { SkillFetchStatus } from "@/hooks/useSkillData";
 
 interface Props {
   sectionId: string;
@@ -24,6 +25,7 @@ interface Props {
   isReloading: boolean;
   activity: string | null;
   failures: { skill: string; error: string }[];
+  statuses: Record<string, SkillFetchStatus>;
   lastRefreshedAt: number | null;
   nextAutoRefreshAt: number | null;
   onOpenAssistant: () => void;
@@ -51,6 +53,7 @@ export default function TopBar({
   isReloading,
   activity,
   failures,
+  statuses,
   lastRefreshedAt,
   nextAutoRefreshAt,
   onOpenAssistant,
@@ -69,8 +72,21 @@ export default function TopBar({
   const SectionIcon = section?.icon;
   const showsCustomize = sectionId === "dashboard";
   const failureText = failures.map((failure) => failure.error).join("；");
+  const statusLines = Object.values(statuses).map(
+    (status) =>
+      status.label +
+      "：" +
+      (status.phase === "running"
+        ? "正在获取"
+        : status.phase === "done"
+          ? "已获取"
+          : status.phase === "failed"
+            ? "获取失败"
+            : "排队中"),
+  );
+  const running = statusLines.filter((line) => line.endsWith("正在获取"));
   const refreshTitle = isReloading
-    ? (activity ?? "正在获取，请稍候...")
+    ? [activity ?? "正在获取，请稍候...", ...statusLines].join("\n")
     : failures.length > 0
       ? "部分数据未获取：" + failureText
       : nextAutoRefreshAt !== null
@@ -87,6 +103,9 @@ export default function TopBar({
         : lastRefreshedAt !== null
           ? { Component: CircleCheck, className: "jv-refresh-ok" }
           : { Component: RefreshCw, className: undefined };
+  const runningText = running.length > 0
+    ? running.join("、").replace(/：正在获取/g, "") + " 获取中"
+    : null;
 
   return (
     <header
@@ -105,7 +124,13 @@ export default function TopBar({
         <span className="jv-body jv-crumb-text">{section?.title ?? ""}</span>
       </div>
 
-      <div className="jv-topbar-spacer" />
+        <div className="jv-topbar-spacer" />
+
+        {isReloading && (
+          <div className="jv-caption jv-topbar-progress" title={statusLines.join("\n")}>
+            {runningText ?? activity}
+          </div>
+        )}
 
       <div className="jv-topbar-actions">
         <button

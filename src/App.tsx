@@ -74,7 +74,15 @@ export default function App() {
     () => Array.from(new Set(appSections.flatMap((entry) => entry.skills))),
     [],
   );
-  const { envelopes, failures, isReloading, activity, refresh, refreshAll } = useSkillData(sectionSkills, fetchableSkills);
+  const {
+    envelopes,
+    failures,
+    isReloading,
+    activity,
+    statuses: skillStatuses,
+    refresh,
+    refreshAll,
+  } = useSkillData(sectionSkills, fetchableSkills);
   const [briefingEnvelope, setBriefingEnvelope] = useState<SkillEnvelope | null>(null);
   const [weeklyRaw, setWeeklyRaw] = useState<unknown>(null);
   const [weeklyDates, setWeeklyDates] = useState<string[]>([]);
@@ -473,6 +481,7 @@ export default function App() {
           isReloading={isReloading}
           activity={activity}
           failures={failures}
+          statuses={skillStatuses}
           lastRefreshedAt={lastRefreshedAt}
           nextAutoRefreshAt={nextAutoRefreshAt}
           onOpenAssistant={() => setAssistantOpen(true)}
@@ -556,10 +565,8 @@ export default function App() {
                 onSelectDate: setAuditDate,
               }}
               isRunning={isReloading}
-              onRun={() => {
-                void handleRefresh();
-              }}
               onSectionRefresh={handleSectionRefresh}
+              fetchStatuses={skillStatuses}
               onNavigate={setSectionId}
               oa={{
                 approvalStatus: oaApprovalStatus,

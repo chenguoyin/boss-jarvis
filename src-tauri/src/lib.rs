@@ -4,6 +4,17 @@ mod skill_runtime;
 mod command_runtime;
 mod llm_runtime;
 
+use std::sync::Arc;
+
+fn fetch_progress_callback(
+    app: tauri::AppHandle,
+) -> skill_runtime::ProgressCallback {
+    use tauri::Emitter;
+    Arc::new(move |event: skill_runtime::FetchProgress| {
+        let _ = app.emit("skill-fetch-progress", event);
+    })
+}
+
 /// 晨报产物由 daily-briefing 巡检写到 ~/.codex/workbench-reports/latest/，
 /// 壳层只读该文件，不解释巡检 stdout。
 #[tauri::command]
@@ -107,7 +118,11 @@ async fn fetch_skill(skill: String) -> Result<skill_runtime::FetchOutcome, Strin
 }
 
 #[tauri::command]
-async fn fetch_skills(skills: Vec<String>) -> Result<Vec<skill_runtime::FetchOutcome>, String> {
+async fn fetch_skills(
+    app: tauri::AppHandle,
+    skills: Vec<String>,
+) -> Result<Vec<skill_runtime::FetchOutcome>, String> {
+    let progress = fetch_progress_callback(app);
     tauri::async_runtime::spawn_blocking(move || {
         let manifest = manifest::load_cached();
         let mut ids: Vec<String> = manifest
@@ -118,7 +133,7 @@ async fn fetch_skills(skills: Vec<String>) -> Result<Vec<skill_runtime::FetchOut
         if ids.is_empty() {
             ids = skills;
         }
-        skill_runtime::fetch_skills(manifest, &ids)
+        skill_runtime::fetch_skills_tracked(manifest, &ids, Some(progress))
     })
     .await
     .map_err(|error| error.to_string())
@@ -126,11 +141,14 @@ async fn fetch_skills(skills: Vec<String>) -> Result<Vec<skill_runtime::FetchOut
 
 /// 手动/自动刷新使用：执行 manifest 中全部取数任务，壳层按当前分区回读。
 #[tauri::command]
-async fn fetch_all_skills() -> Result<Vec<skill_runtime::FetchOutcome>, String> {
+async fn fetch_all_skills(
+    app: tauri::AppHandle,
+) -> Result<Vec<skill_runtime::FetchOutcome>, String> {
+    let progress = fetch_progress_callback(app);
     tauri::async_runtime::spawn_blocking(move || {
         let manifest = manifest::load_cached();
         let ids = manifest.fetch_task_ids();
-        skill_runtime::fetch_skills(manifest, &ids)
+        skill_runtime::fetch_skills_tracked(manifest, &ids, Some(progress))
     })
     .await
     .map_err(|error| error.to_string())

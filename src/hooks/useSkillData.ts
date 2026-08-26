@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { listen } from "@tauri-apps/api/event";
 import {
   fetchAllSkills,
   fetchSkills,
@@ -9,6 +10,20 @@ import type { SkillEnvelope } from "@/lib/contract";
 export interface SkillFailure {
   skill: string;
   error: string;
+}
+
+export type SkillFetchPhase = "pending" | "running" | "done" | "failed";
+
+export interface SkillFetchStatus {
+  skill: string;
+  label: string;
+  phase: SkillFetchPhase;
+}
+
+interface FetchProgressPayload {
+  skill: string;
+  label: string;
+  phase: SkillFetchPhase;
 }
 
 // 老板视角：把底层脚本错误翻译成可决策的提示，不暴露堆栈细节。
@@ -36,6 +51,7 @@ export function useSkillData(sectionSkills: string[], allSkills: string[]) {
   const [failures, setFailures] = useState<SkillFailure[]>([]);
   const [isReloading, setIsReloading] = useState(false);
   const [activity, setActivity] = useState<string | null>(null);
+  const [statuses, setStatuses] = useState<Record<string, SkillFetchStatus>>({});
   const sectionSkillsRef = useRef(sectionSkills);
   useEffect(() => {
     sectionSkillsRef.current = sectionSkills;
@@ -55,6 +71,20 @@ export function useSkillData(sectionSkills: string[], allSkills: string[]) {
     void loadLocal(allSkills);
   }, [allSkills, loadLocal]);
 
+  // Rust 在每个 Skill 开始/结束时发 skill-fetch-progress；这里维护逐项实时状态。
+  useEffect(() => {
+    const unlisten = listen<FetchProgressPayload>("skill-fetch-progress", (event) => {
+      const { skill, label, phase } = event.payload;
+      setStatuses((current) => ({
+        ...current,
+        [skill]: { skill, label, phase },
+      }));
+    });
+    return () => {
+      void unlisten.then((stop) => stop());
+    };
+  }, []);
+
   const refresh = useCallback(
     async (skills: string[]) => {
       const targets = skills.length > 0 ? skills : sectionSkills;
@@ -64,6 +94,7 @@ export function useSkillData(sectionSkills: string[], allSkills: string[]) {
       }
       setIsReloading(true);
       setFailures([]);
+      setStatuses({});
       setActivity(targets.length === 1 ? "正在获取 1 项数据…" : `正在获取 ${targets.length} 项数据…`);
       try {
         const outcomes = await fetchSkills(targets);
@@ -84,6 +115,7 @@ export function useSkillData(sectionSkills: string[], allSkills: string[]) {
   const refreshAll = useCallback(async () => {
       setIsReloading(true);
       setFailures([]);
+      setStatuses({});
       setActivity("正在获取全部数据…");
       try {
         const outcomes = await fetchAllSkills();
@@ -98,5 +130,14 @@ export function useSkillData(sectionSkills: string[], allSkills: string[]) {
     },
     [loadLocal]);
 
-  return { envelopes, failures, isReloading, activity, refresh, refreshAll, loadLocal };
+  return {
+    envelopes,
+    failures,
+    isReloading,
+    activity,
+    statuses,
+    refresh,
+    refreshAll,
+    loadLocal,
+  };
 }

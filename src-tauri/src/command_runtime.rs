@@ -113,6 +113,7 @@ fn record_audit(payload: serde_json::Value) {
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null());
+    crate::skill_runtime::hide_child_console(&mut command);
     for (key, value) in &env {
         command.env(key, value);
     }

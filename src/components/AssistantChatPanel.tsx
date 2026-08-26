@@ -38,7 +38,6 @@ export default function AssistantChatPanel({ runtime, onClose }: Props) {
     if (question === "" || isBusy || sendingRef.current) return;
     sendingRef.current = true;
     setDraft("");
-    setMessages((current) => [...current, { id: Date.now(), role: "user", text: question }]);
     setBusy(true);
     void runAssistantTurn({
       text: question,

@@ -29,6 +29,10 @@ export default function SkillManagerView({
           <div className="jv-body jv-muted">
             未获取到数据。请先运行 skill-manager，把输出 JSON 写入数据目录后刷新。
           </div>
+          <button type="button" className="jv-skill-install" onClick={onInstall}>
+            <FolderPlus size={15} strokeWidth={2} />
+            选择目录并安装
+          </button>
         </div>
       </div>
     );
@@ -49,7 +53,6 @@ export default function SkillManagerView({
         <FolderPlus size={15} strokeWidth={2} />
         选择目录并安装
       </button>
-
       {result.items.length === 0 ? (
         <div className="jv-body jv-muted jv-empty">未注册任何 Skill</div>
       ) : (

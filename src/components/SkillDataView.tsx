@@ -3,6 +3,7 @@ import { RefreshCw, SquareDashed } from "lucide-react";
 import type { AppSection } from "@/lib/sections";
 import { isMissing } from "@/lib/contract";
 import type { SkillFailure } from "@/hooks/useSkillData";
+import type { SkillFetchStatus } from "@/hooks/useSkillData";
 import SkillManagerView from "./SkillManagerView";
 import { parseSkillManager } from "@/lib/skillManager";
 import NativeCalendarView from "./NativeCalendarView";
@@ -45,7 +46,7 @@ interface Props {
     onSelectDate: (date: string) => void;
   };
   isRunning: boolean;
-  onRun: () => void;
+  fetchStatuses: Record<string, SkillFetchStatus>;
   onSectionRefresh: () => void;
   onNavigate: (sectionId: string) => void;
   oa: {
@@ -78,6 +79,30 @@ function displayValue(value: unknown): string {
   return "未获取";
 }
 
+function phaseText(phase: SkillFetchStatus["phase"]): string {
+  if (phase === "running") return "正在获取…";
+  if (phase === "pending") return "排队中…";
+  if (phase === "failed") return "获取失败";
+  return "已获取";
+}
+
+function buildSectionProgressText(statuses: SkillFetchStatus[]): string {
+  const running = statuses.find((status) => status.phase === "running");
+  const pendingCount = statuses.filter((status) => status.phase === "pending").length;
+  const failedCount = statuses.filter((status) => status.phase === "failed").length;
+  if (failedCount > 0) {
+    return failedCount === 1 ? "1 项获取失败" : failedCount + " 项获取失败";
+  }
+  if (running !== undefined) {
+    const suffix = pendingCount > 0 ? " · 排队 " + pendingCount + " 项" : "";
+    return running.label + " 正在获取…" + suffix;
+  }
+  if (pendingCount === statuses.length) {
+    return statuses.length === 1 ? "排队中…" : "排队中 " + pendingCount + " 项";
+  }
+  return "已获取 " + statuses.length + " 项";
+}
+
 export default function SkillDataView({
   section,
   envelopes,
@@ -86,7 +111,7 @@ export default function SkillDataView({
   weekly,
   audit,
   isRunning,
-  onRun,
+  fetchStatuses,
   onSectionRefresh,
   onNavigate,
   oa,
@@ -135,21 +160,35 @@ export default function SkillDataView({
   const loaded = section.skills
     .map((skill) => ({ skill, envelope: envelopes[skill] }))
     .filter((entry) => entry.envelope !== undefined);
+  const sectionStatuses = section.skills
+    .map((skill) => fetchStatuses[skill])
+    .filter((status): status is SkillFetchStatus => status !== undefined);
 
   return (
     <div className="jv-placeholder">
       <div className="jv-section-header">
         <div className="jv-title">{section.title}</div>
-        <button
-          type="button"
-          className="jv-icon-plain"
-          title="调用 Skill 获取真实数据"
-          aria-label="刷新本分区"
-          onClick={onSectionRefresh}
-          disabled={isRunning}
-        >
-          <RefreshCw size={15} strokeWidth={2} className={isRunning ? "jv-refresh-spin" : undefined} />
-        </button>
+        <div className="jv-section-header-actions">
+          {isRunning && sectionStatuses.length > 0 && (
+            <span
+              className={"jv-caption jv-section-fetch-progress " + (sectionStatuses.some((s) => s.phase === "failed") ? "jv-refresh-failed" : "jv-refresh-running")}
+              role="status"
+              title={sectionStatuses.map((s) => s.label + "：" + phaseText(s.phase)).join("\n")}
+            >
+              {buildSectionProgressText(sectionStatuses)}
+            </span>
+          )}
+          <button
+            type="button"
+            className="jv-icon-plain"
+            title="调用 Skill 获取真实数据"
+            aria-label="刷新本分区"
+            onClick={onSectionRefresh}
+            disabled={isRunning}
+          >
+            <RefreshCw size={15} strokeWidth={2} className={isRunning ? "jv-refresh-spin" : undefined} />
+          </button>
+        </div>
       </div>
       {failures.length > 0 && (
         <div className="jv-failure-banner" role="status">
@@ -180,7 +219,7 @@ export default function SkillDataView({
       ) : section.id === "calendar" ? (
         <NativeCalendarView result={nativeCalendar} />
       ) : section.id === "briefing" ? (
-        <BriefingView briefing={briefing} isRunning={isRunning} onRun={onRun} />
+        <BriefingView briefing={briefing} isRunning={isRunning} />
       ) : section.id === "weekly" ? (
         <WeeklySummaryView
           summary={weeklySummary}
@@ -218,7 +257,7 @@ export default function SkillDataView({
             onSelectDate: audit.onSelectDate,
           }}
           isRunning={isRunning}
-          onRefresh={onRun}
+          onRefresh={onSectionRefresh}
         />
       ) : (
         <>
