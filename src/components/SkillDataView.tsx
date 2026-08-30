@@ -2,12 +2,12 @@ import { useMemo } from "react";
 import { RefreshCw, SquareDashed } from "lucide-react";
 import type { AppSection } from "@/lib/sections";
 import { isMissing } from "@/lib/contract";
-import type { SkillFailure } from "@/hooks/useSkillData";
-import type { SkillFetchStatus } from "@/hooks/useSkillData";
+import { buildFetchProgressText } from "@/hooks/useSkillData";
+import type { SkillFailure, SkillFetchStatus } from "@/hooks/useSkillData";
 import SkillManagerView from "./SkillManagerView";
 import { parseSkillManager } from "@/lib/skillManager";
-import NativeCalendarView from "./NativeCalendarView";
-import { parseNativeCalendar } from "@/lib/nativeCalendar";
+import OaScheduleView from "./OaScheduleView";
+import { parseOaSchedule } from "@/lib/oaSchedule";
 import BriefingView from "./BriefingView";
 import { parseDailyBriefing } from "@/lib/dailyBriefing";
 import WeeklySummaryView from "./WeeklySummaryView";
@@ -49,6 +49,7 @@ interface Props {
   fetchStatuses: Record<string, SkillFetchStatus>;
   onSectionRefresh: () => void;
   onNavigate: (sectionId: string) => void;
+  onBriefingApprovalDone: (summary: string) => void;
   oa: {
     approvalStatus: string | null;
     onApprove: (item: OATodoItem, comment: string) => void;
@@ -57,8 +58,8 @@ interface Props {
   mail: {
     readStatus: string | null;
     replyStatus: string | null;
-    replyingIds: ReadonlySet<number>;
-    hiddenIds: ReadonlySet<number>;
+    replyingIds: ReadonlySet<number | string>;
+    hiddenIds: ReadonlySet<number | string>;
     onMarkRead: (message: MailMessage) => void;
     onOpenReply: (message: MailMessage) => void;
   };
@@ -86,23 +87,6 @@ function phaseText(phase: SkillFetchStatus["phase"]): string {
   return "已获取";
 }
 
-function buildSectionProgressText(statuses: SkillFetchStatus[]): string {
-  const running = statuses.find((status) => status.phase === "running");
-  const pendingCount = statuses.filter((status) => status.phase === "pending").length;
-  const failedCount = statuses.filter((status) => status.phase === "failed").length;
-  if (failedCount > 0) {
-    return failedCount === 1 ? "1 项获取失败" : failedCount + " 项获取失败";
-  }
-  if (running !== undefined) {
-    const suffix = pendingCount > 0 ? " · 排队 " + pendingCount + " 项" : "";
-    return running.label + " 正在获取…" + suffix;
-  }
-  if (pendingCount === statuses.length) {
-    return statuses.length === 1 ? "排队中…" : "排队中 " + pendingCount + " 项";
-  }
-  return "已获取 " + statuses.length + " 项";
-}
-
 export default function SkillDataView({
   section,
   envelopes,
@@ -114,6 +98,7 @@ export default function SkillDataView({
   fetchStatuses,
   onSectionRefresh,
   onNavigate,
+  onBriefingApprovalDone,
   oa,
   mail,
   skills,
@@ -126,10 +111,10 @@ export default function SkillDataView({
     const skillManager = skillManagerEnvelope === null
       ? null
       : parseSkillManager(skillManagerEnvelope as import("@/lib/contract").SkillEnvelope);
-    const calendarEnvelope = envelopes["native-calendar"] ?? null;
-    const nativeCalendar = calendarEnvelope === null
+    const calendarEnvelope = envelopes["oa-schedule"] ?? null;
+    const oaSchedule = calendarEnvelope === null
       ? null
-      : parseNativeCalendar(calendarEnvelope as import("@/lib/contract").SkillEnvelope);
+      : parseOaSchedule(calendarEnvelope as import("@/lib/contract").SkillEnvelope);
     const briefing = briefingEnvelope === null ? null : parseDailyBriefing(briefingEnvelope);
     const weeklySummary = parseWeeklySummary(weekly.raw);
     const hongyiSnapshot = buildHongyiSnapshot(
@@ -137,20 +122,20 @@ export default function SkillDataView({
       envelopes["hongyi-business-overview"] as import("@/lib/contract").SkillEnvelope | null ?? null,
     );
     const oaTodo = parseOATodo(envelopes["oa-todo"] as import("@/lib/contract").SkillEnvelope | null ?? null);
-    const parsedMail = parseCompanyMail(envelopes["company-mail"] as import("@/lib/contract").SkillEnvelope | null ?? null);
+    const parsedMail = parseCompanyMail(envelopes["changhong-mail"] as import("@/lib/contract").SkillEnvelope | null ?? null);
     const reminders = parseReminderCenter(envelopes["reminder-center"] as import("@/lib/contract").SkillEnvelope | null ?? null);
-    return { skillManager, nativeCalendar, briefing, weeklySummary, hongyiSnapshot, oaTodo, parsedMail, reminders };
+    return { skillManager, oaSchedule, briefing, weeklySummary, hongyiSnapshot, oaTodo, parsedMail, reminders };
   }, [envelopes, briefingEnvelope, weekly.raw]);
 
   const companyMail = parsed.parsedMail === null ? null : hideMailMessages(parsed.parsedMail, mail.hiddenIds);
-  const { skillManager, nativeCalendar, briefing, weeklySummary, hongyiSnapshot, oaTodo } = parsed;
+  const { skillManager, oaSchedule, briefing, weeklySummary, hongyiSnapshot, oaTodo } = parsed;
   const auditEntries = useMemo(() => parseAuditLog(audit.jsonl), [audit.jsonl]);
   const dashboardSnapshot = useMemo(
     () => buildDashboardSnapshot({
       reminders: parsed.reminders,
       oaTodo: parsed.oaTodo,
       mail: companyMail,
-      calendar: parsed.nativeCalendar,
+      calendar: parsed.oaSchedule,
       briefing: parsed.briefing,
       hongyi: parsed.hongyiSnapshot,
     }),
@@ -163,19 +148,25 @@ export default function SkillDataView({
   const sectionStatuses = section.skills
     .map((skill) => fetchStatuses[skill])
     .filter((status): status is SkillFetchStatus => status !== undefined);
+  // 实时步骤：取数中与取数结束后都保留在本页刷新按钮前方，不占用顶栏。
+  const progressTone = sectionStatuses.some((s) => s.phase === "failed")
+    ? "jv-refresh-failed"
+    : sectionStatuses.some((s) => s.phase === "running" || s.phase === "pending")
+      ? "jv-refresh-running"
+      : "jv-refresh-ok";
 
   return (
     <div className="jv-placeholder">
       <div className="jv-section-header">
         <div className="jv-title">{section.title}</div>
         <div className="jv-section-header-actions">
-          {isRunning && sectionStatuses.length > 0 && (
+          {sectionStatuses.length > 0 && (
             <span
-              className={"jv-caption jv-section-fetch-progress " + (sectionStatuses.some((s) => s.phase === "failed") ? "jv-refresh-failed" : "jv-refresh-running")}
+              className={"jv-caption jv-section-fetch-progress " + progressTone}
               role="status"
               title={sectionStatuses.map((s) => s.label + "：" + phaseText(s.phase)).join("\n")}
             >
-              {buildSectionProgressText(sectionStatuses)}
+              {buildFetchProgressText(sectionStatuses)}
             </span>
           )}
           <button
@@ -217,9 +208,14 @@ export default function SkillDataView({
           pendingSkillIds={skills.pendingSkillIds}
         />
       ) : section.id === "calendar" ? (
-        <NativeCalendarView result={nativeCalendar} />
+        <OaScheduleView result={oaSchedule} />
       ) : section.id === "briefing" ? (
-        <BriefingView briefing={briefing} isRunning={isRunning} />
+        <BriefingView
+          briefing={briefing}
+          isRunning={isRunning}
+          onNavigate={onNavigate}
+          onApprovalDone={onBriefingApprovalDone}
+        />
       ) : section.id === "weekly" ? (
         <WeeklySummaryView
           summary={weeklySummary}

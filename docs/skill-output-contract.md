@@ -61,14 +61,47 @@ boss-jarvis App 与各 Skill 之间的唯一接口。所有 Skill 的数据通�
 ```json
 { "total": "13", "count": 13,
   "items": [{ "title": "...", "source": "...", "sender": "...", "time": "...",
+              "targetRef": {
+                "systemSign": "newoa",
+                "flowWorkId": "G_1_FNBQS-100353",
+                "instanceCode": "1797345",
+                "orderId": "6618633",
+                "taskId": "6618633",
+                "url": "https://oa.changhong.com/#/sd-thirdparty-login?redirect=...",
+                "appUrl": "https://chmoals.changhong.com:30000/#/sd-thirdparty-login?redirect=..." },
+              "documentDetail": {
+                "sourceSystem": "虹翼",
+                "openedBySso": true,
+                "url": "https://hongyi.changhong.com/...",
+                "host": "hongyi.changhong.com",
+                "pageTitle": "...",
+                "bodyPreview": "...",
+                "fields": [{ "label": "项目名称", "name": "", "value": "..." }],
+                "tables": [[["字段", "值"], ["金额", "1000.00"]]],
+                "attachments": [{ "text": "附件.pdf", "href": "..." }],
+                "amounts": [1000],
+                "dates": ["2026-08-29"] },
               "level": "urgent",
               "analysis": { "priority": "P1", "priorityLabel": "...",
                             "riskLevel": "...", "riskPoints": ["..."],
-                            "suggestion": "...", "detail": "..." } }] }
+                            "suggestion": "...", "detail": "...",
+                            "deadlineDate": "2026-08-29",
+                            "deadlineBasis": "hard",
+                            "deadlineConfidence": "certain",
+                            "deadlineReason": "正文识别到处理截止日期 2026-08-29" } }] }
 ```
 
 - 优先级判定、风险点、处理建议全部在 Skill 侧完成；P1/P2/P3 颜色映射（red/yellow/green）也由 Skill 给出。
 - App 端只读展示，不再做任何优先级推断。
+- `targetRef` 是 OA 接口返回的单据定位凭证，用于后续审批执行前身份校验；必须保留 `taskId` / `orderId` / `instanceCode` / `flowWorkId` / `url` / `appUrl` 等源字段，不得只用标题定位。标题可能只是“差旅审批”等泛名称，不能作为唯一凭证。
+- `documentDetail` 是源系统单据明细，适用于自身 OA、虹翼、智能财务、人力资源等所有 OA 列表来源；字段、表格、附件、金额和日期必须来自业务页面或 iframe 可见内容，取不到则为空数组或空字符串，不得猜测。
+- `source` 保留 OA 列表中的来源系统名；`documentDetail.sourceSystem` 保留详情读取时确认到的来源系统名。二者不一致时 App 同时展示，供人工核验。
+- deadlineDate：单据正文识别出的硬截止日（yyyy-MM-dd），识别不到则省略该字段。
+- deadlineBasis：hard（单据真实截止日）/ policy（审批停留红线等政策规则）/ none（无信号）。
+- deadlineConfidence：certain（硬截止日）/ estimated（政策推算）/ unknown（无信号）。
+- deadlineReason：截止日信号的一句话依据。
+- 可延后工作日数（deferWindowDays，可为负表示已逾期）与最晚安全处理日（latestSafeDate，yyyy-MM-dd）由下游 risk-scoring 换算，boss-priority 据此分桶；oa-todo 只透出原始 deadline 信号，不做工作日换算。
+- 延后天数统一按工作日计算（周一至周五；中国法定节假日暂不识别，按工作日近似）。付款、合同等有硬日期的按自然日定位日期、按工作日换算剩余天数。
 
 兼容契约（旧，read-todo-detail.cjs 列表模式输出）：
 
@@ -132,15 +165,16 @@ boss-jarvis App 与各 Skill 之间的唯一接口。所有 Skill 的数据通�
 - App 优先读 `bossView`；无 `bossView` 时回退解析旧 `summary`/`items` 字段。
 - 取不到的字段为 `null`，App 显示“未获取”，不得填 0。
 
-### company-mail / daily-briefing / audit-log
+### changhong-mail / daily-briefing / audit-log
 
-#### company-mail
+#### changhong-mail
 
 - `rows[].bodySummary` 为纯文本摘要，`rows[].bodyHtml` 为清洗后的 HTML 正文（已去除 script/style 与内联事件，限长 200KB）。
 - `bodyHtml` 仅用于 App 详情弹层只读渲染；无 HTML 分支的邮件该字段为空字符串，App 回退展示 `bodySummary`。
 - App 渲染 HTML 时禁用 JavaScript 并拦截链接跳转。
-- 用户点击 `rows[].id` 对应邮件主题时，App 直接调用 company-mail 的 `mark-mail-read.cjs --message-id=<id> --confirmed` 将该邮件标记为已读；脚本通过 AppleScript 由 Mail 自身更新状态，不直接写 Envelope Index。
-- 回复正文由 company-mail 的 `generate-reply-draft.cjs` 生成（`{ok, mode: draft_only, subject, draftBody, generator, audit}`）；App 不内置任何回复文案，只负责串联 generate-reply-draft、prepare-reply、open-confirmed-reply。
+- macOS 与 Windows 均通过统一入口 `changhong-mail` 获取邮件、标记已读和打开回复，不在 App 或 manifest 做平台分发。
+- 用户点击 `rows[].id` 对应邮件主题时，App 直接调用 changhong-mail 的 `mark-mail-read.cjs --message-id=<id> --confirmed` 将该邮件标记为已读。
+- 回复正文由 changhong-mail 的 `generate-reply-draft.cjs` 生成（`{ok, mode: draft_only, subject, draftBody, generator, audit}`）；App 不内置任何回复文案，只负责串联 generate-reply-draft、prepare-reply、open-confirmed-reply。
 - 生成采用两级策略：优先经 model-router 调公司大模型按"先分析邮件意图再撰写"的提示词（`reply-prompt.md`）产出结构化回复；模型未配置、失败或限流时回退本地模板。`generator` 字段标明实际来源（`model`/`template`）。金额、日期、人名只允许来自原邮件或回复依据，不得由模型编造。
 
 #### daily-briefing
@@ -153,14 +187,16 @@ boss-jarvis App 与各 Skill 之间的唯一接口。所有 Skill 的数据通�
     "summary": { "today": "", "headline": "", "generatedAt": "",
                  "total": 0, "mustDoNow": 0, "focusToday": 0, "watchList": 0,
                  "hiddenLowPriority": 0, "unavailableSources": 0 },
-    "sections": { "mustDoNow": [], "focusToday": [], "watchList": [] },
+    "sections": {
+      "mustDoNow": [{ "title": "...", "deferHint": "还能延后 2 个工作日，最晚 2026-08-31" }],
+      "focusToday": [], "watchList": [] },
     "sourceLabels": [],
     "schedule": { "configuredTime": null, "installed": false, "loaded": false } } }
 ```
 
 - App 优先读 `bossView`；无 `bossView` 时回退解析旧 `homepage`/`ranked`/`sources` 字段（此时定时任务状态显示“未获取”）。
 - `schedule` 由 daily-briefing 的 `manage-schedule.cjs status` 给出；App 不硬编码配置文件路径、plist 名称或默认时间。
-- `sections` 只给首页展示用的标题数组；排序与评分仍由 `ranked`（boss-priority/risk-scoring）给出。
+- `sections` 每项为 `{ title, deferHint }`；`deferHint` 由 daily-briefing 依据 `deferWindowDays`/`latestSafeDate` 生成（例如“还能延后 2 个工作日，最晚 2026-08-31”“已逾期 1 个工作日”，无信号时为 `null`）。排序与评分仍由 `ranked`（boss-priority/risk-scoring）给出。
 
 #### audit-log
 
@@ -187,8 +223,8 @@ boss-jarvis App 与各 Skill 之间的唯一接口。所有 Skill 的数据通�
 
 ### 编排层 Skill（不被 App 直接消费）
 
-- `risk-scoring/score-items.cjs`：通用风险评分。输入为上游 skill 的 JSON（stdin 或文件路径，`--source=oa|spm|...`），输出 `items[]`（含 `level` red/yellow/green、`score`、`homepage`、`riskFactors`、`suggestedActions`）。金额必须给数字字段（`amount` 等，单位元）或“金额：xxx”文本；`amountText` 之类自定义文本字段不会被识别。
-- `boss-priority/rank-items.cjs`：老板视角排序。输入为 risk-scoring 的输出（或原始条目），输出 `mustDoNow`/`focusToday`/`watchList`/`archiveItems` 四个分桶。
+- `risk-scoring/score-items.cjs`：通用风险评分。输入为上游 skill 的 JSON（stdin 或文件路径，`--source=oa|spm|...`），输出 `items[]`（含 `level` red/yellow/green、`score`、`homepage`、`riskFactors`、`suggestedActions`、`deferWindowDays`、`latestSafeDate`、`deadlineBasis`、`deadlineConfidence`、`deadlineReason`）。金额必须给数字字段（`amount` 等，单位元）或“金额：xxx”文本；`amountText` 之类自定义文本字段不会被识别。
+- `boss-priority/rank-items.cjs`：老板视角排序。输入为 risk-scoring 的输出（或原始条目），输出 `mustDoNow`/`focusToday`/`watchList`/`archiveItems` 四个分桶；分桶优先使用 `deferWindowDays`（可延后工作日数），缺失时回退 `timeWindow` 与 `priorityScore`。
 - 这两个 skill 只被 `boss-cockpit/build-cockpit.cjs` 的 `scoreAndRank()` 消费，App 源码不直接引用；评分或排序规则调整只改 skill 侧。
 - `ai-chat-dispatcher/route-command.cjs`：对话指令路由。`--message=` 或 stdin 输入自然语言，输出 `primarySkill`、候选、`requiresConfirmation` 与执行计划；不带 `--execute-readonly` 时只路由不执行。写操作（同意/驳回/提交等）一律标记 `requiresConfirmation=true`。SPM 专属标识词（业务协作/EIAP/SPM）有特异性加分，优先于泛化的“待办”。
 

@@ -3,7 +3,7 @@ import { formatDateTime, nowDateTimeText } from "./datetime";
 import { llmChat, readSkillData, readSkillEnv } from "./skillBridge";
 import { parseOATodo } from "./oaTodo";
 import { parseCompanyMail } from "./mail";
-import { parseNativeCalendar } from "./nativeCalendar";
+import { parseOaSchedule } from "./oaSchedule";
 import { parseDailyBriefing } from "./dailyBriefing";
 import { parseSkillManager } from "./skillManager";
 import { buildHongyiSnapshot } from "./hongyiBusiness";
@@ -22,7 +22,7 @@ interface ToolCall {
 }
 
 interface MailLike {
-  id: number;
+  id: number | string;
   subject: string;
   needsReply: boolean;
 }
@@ -38,14 +38,14 @@ export interface AssistantRuntime {
   currentSection: string;
   onOpenSection: (section: string) => void;
   onRunSkill: (skill: string) => Promise<boolean>;
-  onReplyMail: (mailId: number) => Promise<{ ok: boolean; summary: string } | null>;
+  onReplyMail: (mailId: number | string) => Promise<{ ok: boolean; summary: string } | null>;
 }
 
 const MAX_TOOL_ROUNDS = 4;
 const SNAPSHOT_SKILLS = [
   "oa-todo",
-  "company-mail",
-  "native-calendar",
+  "changhong-mail",
+  "oa-schedule",
   "daily-briefing",
   "skill-manager",
   "hongyi-today-metrics",
@@ -82,7 +82,7 @@ export async function buildAssistantContextSnapshot(): Promise<string> {
     lines.push("OA 待办：未获取");
   }
 
-  const mail = parseCompanyMail(envelopes.get("company-mail") ?? null);
+  const mail = parseCompanyMail(envelopes.get("changhong-mail") ?? null);
   if (mail) {
     lines.push(`邮件 ${mail.count} 封，其中需回复 ${mail.needsReplyCount} 封（${fullTime(mail.fetchedAt)}）：`);
     for (const message of mail.items.filter((item) => item.needsReply).slice(0, 5)) {
@@ -92,15 +92,15 @@ export async function buildAssistantContextSnapshot(): Promise<string> {
     lines.push("邮件：未获取");
   }
 
-  const calendarEnvelope = envelopes.get("native-calendar") ?? null;
-  const calendar = calendarEnvelope && calendarEnvelope.ok ? parseNativeCalendar(calendarEnvelope) : null;
+  const calendarEnvelope = envelopes.get("oa-schedule") ?? null;
+  const calendar = calendarEnvelope && calendarEnvelope.ok ? parseOaSchedule(calendarEnvelope) : null;
   if (calendar) {
-    lines.push(`今日日程 ${calendar.summaryEventCount} 项，提醒 ${calendar.summaryReminderCount} 条（${fullTime(calendar.fetchedAt)}）`);
+    lines.push(`今日日程 ${calendar.summaryEventCount} 项（${fullTime(calendar.fetchedAt)}）`);
     for (const event of calendar.events.slice(0, 5)) {
       lines.push(`- ${event.start} ${event.title}`);
     }
   } else {
-    lines.push("日历提醒：未获取");
+    lines.push("日程提醒：未获取");
   }
 
   const hongyi = buildHongyiSnapshot(
@@ -127,7 +127,9 @@ export async function buildAssistantContextSnapshot(): Promise<string> {
     lines.push(`今日晨报（${fullTime(briefing.generatedAt)}）：${briefing.headline}`);
     if (briefing.mustDoItems.length > 0) {
       lines.push("必须立即处理：");
-      for (const item of briefing.mustDoItems.slice(0, 5)) lines.push("- " + item);
+      for (const item of briefing.mustDoItems.slice(0, 5)) {
+        lines.push(item.deferHint ? `- ${item.title}（${item.deferHint}）` : `- ${item.title}`);
+      }
     }
   } else {
     lines.push("每日晨报：未获取");
@@ -245,15 +247,15 @@ async function executeToolCall(
   }
   if (name === "reply_mail") {
     const rawId = typeof args.mail_id === "string" ? args.mail_id : String(args.mail_id ?? -1);
-    const mailId = Number.parseInt(rawId, 10);
-    const message = mailItems.find((item) => item.id === mailId);
+    const numericId = Number.parseInt(rawId, 10);
+    const message = mailItems.find((item) => item.id === rawId || item.id === numericId);
     if (!message) {
       return {
         progress: "回复失败：邮件不在当前列表",
-        result: `邮件 ID ${rawId} 不在当前邮件列表里；可先 run_skill company-mail 刷新，或让老板到邮件页查看。`,
+        result: `邮件 ID ${rawId} 不在当前邮件列表里；可先 run_skill changhong-mail 刷新，或让老板到邮件页查看。`,
       };
     }
-    const outcome = await runtime.onReplyMail(mailId);
+    const outcome = await runtime.onReplyMail(message.id);
     if (outcome && outcome.ok) {
       return {
         progress: `已为「${message.subject}」打开回复窗口`,
@@ -317,7 +319,7 @@ export async function runAssistantTurn(options: {
   }
 
   const snapshot = await buildAssistantContextSnapshot();
-  const mailEnvelope = await readSkillData("company-mail");
+  const mailEnvelope = await readSkillData("changhong-mail");
   const mailResult = parseCompanyMail(mailEnvelope);
   const mailItems: MailLike[] = mailResult?.items ?? [];
 

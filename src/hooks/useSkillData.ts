@@ -20,10 +20,54 @@ export interface SkillFetchStatus {
   phase: SkillFetchPhase;
 }
 
+// 各页面刷新按钮前方的实时步骤文案：优先正在获取项，其次失败数与排队数。
+export function buildFetchProgressText(statuses: SkillFetchStatus[]): string {
+  const running = statuses.find((status) => status.phase === "running");
+  const pendingCount = statuses.filter((status) => status.phase === "pending").length;
+  const failedCount = statuses.filter((status) => status.phase === "failed").length;
+  if (failedCount > 0) {
+    return failedCount === 1 ? "1 项获取失败" : failedCount + " 项获取失败";
+  }
+  if (running !== undefined) {
+    const suffix = pendingCount > 0 ? " · 排队 " + pendingCount + " 项" : "";
+    return running.label + " 正在获取…" + suffix;
+  }
+  if (pendingCount === statuses.length) {
+    return statuses.length === 1 ? "排队中…" : "排队中 " + pendingCount + " 项";
+  }
+  return "已获取 " + statuses.length + " 项";
+}
+
 interface FetchProgressPayload {
   skill: string;
   label: string;
   phase: SkillFetchPhase;
+}
+
+// 兼容两种壳层 payload 形态：新壳层发 { skill, label, phase } 对象，
+// 旧壳层发 [skill, label, phase, detail] 元组；字段缺失时回退 skill id，避免界面出现 undefined。
+function normalizeProgressPayload(payload: unknown): FetchProgressPayload | null {
+  let skill: unknown;
+  let label: unknown;
+  let phase: unknown;
+  if (Array.isArray(payload)) {
+    [skill, label, phase] = payload;
+  } else if (payload !== null && typeof payload === "object") {
+    const record = payload as Record<string, unknown>;
+    skill = record.skill;
+    label = record.label;
+    phase = record.phase;
+  } else {
+    return null;
+  }
+  if (typeof skill !== "string" || skill === "") return null;
+  const normalizedPhase: SkillFetchPhase =
+    phase === "running" || phase === "done" || phase === "failed" ? phase : "pending";
+  return {
+    skill,
+    label: typeof label === "string" && label !== "" ? label : skill,
+    phase: normalizedPhase,
+  };
 }
 
 // 老板视角：把底层脚本错误翻译成可决策的提示，不暴露堆栈细节。
@@ -73,11 +117,12 @@ export function useSkillData(sectionSkills: string[], allSkills: string[]) {
 
   // Rust 在每个 Skill 开始/结束时发 skill-fetch-progress；这里维护逐项实时状态。
   useEffect(() => {
-    const unlisten = listen<FetchProgressPayload>("skill-fetch-progress", (event) => {
-      const { skill, label, phase } = event.payload;
+    const unlisten = listen<unknown>("skill-fetch-progress", (event) => {
+      const normalized = normalizeProgressPayload(event.payload);
+      if (normalized === null) return;
       setStatuses((current) => ({
         ...current,
-        [skill]: { skill, label, phase },
+        [normalized.skill]: normalized,
       }));
     });
     return () => {

@@ -7,14 +7,18 @@
       "kind": "common",
       "runner": "node",
       "fetch": "oa-todo/fetch-todo-with-analysis.cjs",
-      "actions": { "approve": "oa-todo/approve-todo.cjs" }
+      "actions": {
+        "approve": "oa-todo/approve-todo.cjs"
+      }
     },
     "spm-todo": {
       "displayName": "业务协作待办",
       "kind": "common",
       "runner": "node",
       "fetch": "spm-todo/fetch-spm-todo.cjs",
-      "actions": { "approve": "spm-todo/approve-todo.cjs" }
+      "actions": {
+        "approve": "spm-todo/approve-todo.cjs"
+      }
     },
     "hongyi-today-metrics": {
       "displayName": "虹翼今日专项",
@@ -39,15 +43,21 @@
       "kind": "common",
       "runner": "node",
       "fetch": "daily-briefing/run-briefing.cjs",
-      "actions": { "schedule": "daily-briefing/manage-schedule.cjs" }
+      "actions": {
+        "schedule": "daily-briefing/manage-schedule.cjs"
+      }
     },
     "skill-manager": {
       "displayName": "Skill 管理",
       "kind": "common",
       "runner": "node",
       "fetch": "skill-manager/manage-skills.cjs",
-      "fetchArgs": ["list"],
-      "actions": { "manage": "skill-manager/manage-skills.cjs" }
+      "fetchArgs": [
+        "list"
+      ],
+      "actions": {
+        "manage": "skill-manager/manage-skills.cjs"
+      }
     },
     "weekly-summary": {
       "displayName": "每周总结",
@@ -66,48 +76,35 @@
       "kind": "common",
       "runner": "node",
       "fetch": null,
-      "actions": { "record": "audit-log/record-audit.cjs" }
+      "actions": {
+        "record": "audit-log/record-audit.cjs"
+      }
     },
     "ai-chat-dispatcher": {
       "displayName": "AI 对话调度",
       "kind": "common",
       "runner": "node",
-      "actions": { "route": "ai-chat-dispatcher/route-command.cjs" }
+      "actions": {
+        "route": "ai-chat-dispatcher/route-command.cjs"
+      }
     },
-    "company-mail": {
+    "changhong-mail": {
       "displayName": "邮件",
-      "kind": "platform",
-      "macos": {
-        "runner": "node",
-        "fetch": "company-mail/fetch-unread-mail.cjs",
-        "actions": {
-          "mark-read": "company-mail/mark-mail-read.cjs",
-          "generate-reply": "company-mail/generate-reply-draft.cjs",
-          "prepare-reply": "company-mail/prepare-reply.cjs",
-          "open-reply": "company-mail/open-confirmed-reply.cjs"
-        }
-      },
-      "windows": {
-        "runner": "powershell",
-        "pending": true,
-        "note": "Phase T: Outlook COM / Microsoft Graph",
-        "fetch": null,
-        "actions": {}
+      "kind": "common",
+      "runner": "node",
+      "fetch": "changhong-mail/fetch-unread-mail.cjs",
+      "actions": {
+        "mark-read": "changhong-mail/mark-mail-read.cjs",
+        "generate-reply": "changhong-mail/generate-reply-draft.cjs",
+        "prepare-reply": "changhong-mail/prepare-reply.cjs",
+        "open-reply": "changhong-mail/open-confirmed-reply.cjs"
       }
     },
-    "native-calendar": {
-      "displayName": "日历提醒",
-      "kind": "platform",
-      "macos": {
-        "runner": "swift",
-        "fetch": "native-calendar/fetch-today.swift"
-      },
-      "windows": {
-        "runner": "powershell",
-        "pending": true,
-        "note": "Phase T: Outlook COM / Microsoft Graph",
-        "fetch": null
-      }
+    "oa-schedule": {
+      "displayName": "日程提醒",
+      "kind": "common",
+      "runner": "node",
+      "fetch": "oa-schedule/fetch-for-workbench.cjs"
     }
   }
 }

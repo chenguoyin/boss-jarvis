@@ -1,7 +1,7 @@
 import type { ReminderItem, ReminderResult } from "./reminderCenter";
 import type { OATodoResult } from "./oaTodo";
 import type { MailMessage, MailResult } from "./mail";
-import type { NativeCalendarResult } from "./nativeCalendar";
+import type { OaScheduleResult } from "./oaSchedule";
 import type { DailyBriefing } from "./dailyBriefing";
 import type { HongyiSnapshot } from "./hongyiBusiness";
 import { formatDateTime } from "./datetime";
@@ -134,7 +134,7 @@ export function buildDashboardSnapshot(input: {
   reminders: ReminderResult | null;
   oaTodo: OATodoResult | null;
   mail: MailResult | null;
-  calendar: NativeCalendarResult | null;
+  calendar: OaScheduleResult | null;
   briefing: DailyBriefing | null;
   hongyi: HongyiSnapshot;
 }): DashboardSnapshot {
@@ -169,8 +169,8 @@ export function buildDashboardSnapshot(input: {
       title: "今日会议 / 日程",
       count: calendarTodayCount,
       detail: calendar === null
-        ? "日历数据未获取"
-        : `今日事件 ${calendarTodayCount} 个 · 逾期提醒 ${calendar.summaryOverdueReminderCount} 个`,
+        ? "日程数据未获取"
+        : `今日日程 ${calendarTodayCount} 项 · 来源 OA`,
       level: "normal",
       targetSection: "calendar",
     },

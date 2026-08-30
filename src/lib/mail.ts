@@ -4,7 +4,7 @@ import { formatDateTime } from "./datetime";
 export type MailLevel = "urgent" | "attention" | "normal" | "missing";
 
 export interface MailMessage {
-  id: number;
+  id: number | string;
   sender: string;
   subject: string;
   receivedAt: string;
@@ -15,6 +15,9 @@ export interface MailMessage {
   level: MailLevel;
   needsReply: boolean;
   replyBasis: string;
+  reminderCandidate: boolean;
+  priority: string;
+  priorityLabel: string;
 }
 
 export interface MailResult {
@@ -22,11 +25,13 @@ export interface MailResult {
   items: MailMessage[];
   fetchedAt: string;
   needsReplyCount: number;
+  reminderCandidateCount: number;
   hasUrgent: boolean;
   hasAttention: boolean;
+  sourceSystem?: string;
 }
 
-export function hideMailMessages(result: MailResult, ids: ReadonlySet<number>): MailResult {
+export function hideMailMessages(result: MailResult, ids: ReadonlySet<number | string>): MailResult {
   if (ids.size === 0) return result;
   const items = result.items.filter((item) => !ids.has(item.id));
   return {
@@ -34,6 +39,7 @@ export function hideMailMessages(result: MailResult, ids: ReadonlySet<number>): 
     items,
     count: Math.max(result.count - (result.items.length - items.length), 0),
     needsReplyCount: items.filter((item) => item.needsReply).length,
+    reminderCandidateCount: items.filter((item) => item.reminderCandidate).length,
     hasUrgent: items.some((item) => item.level === "urgent"),
     hasAttention: items.some((item) => item.level === "attention"),
   };
@@ -66,7 +72,7 @@ export function mailLevelTitle(level: MailLevel): string {
   return "未获取";
 }
 
-// 解析 company-mail 的 rows；文件缺失或 ok=false 时返回 null，调用方显示“未获取”。
+// 解析统一邮件入口 changhong-mail 的 rows；文件缺失或 ok=false 时返回 null，调用方显示"未获取"。
 export function parseCompanyMail(envelope: SkillEnvelope | null): MailResult | null {
   if (envelope === null || !envelope.ok) return null;
   const raw = envelope as unknown as Record<string, unknown>;
@@ -74,15 +80,21 @@ export function parseCompanyMail(envelope: SkillEnvelope | null): MailResult | n
   const items: MailMessage[] = [];
   for (const value of rows) {
     const row = record(value);
-    const id = typeof row.id === "number" && Number.isFinite(row.id) ? row.id : null;
+    let id: number | string | null = null;
+    if (typeof row.id === "number" && Number.isFinite(row.id)) {
+      id = row.id;
+    } else if (typeof row.id === "string" && row.id.trim() !== "") {
+      id = row.id.trim();
+    }
     const subject = text(row.subject);
     if (id === null || subject === "") continue;
     const analysis = record(row.analysis);
     const receivedAt = text(row.receivedAt);
     const fallbackTime = text(row.receivedAtText);
+    const sender = text(row.sender) || text(row.senderName) || text(row.senderEmail);
     items.push({
       id,
-      sender: text(row.sender),
+      sender,
       subject,
       receivedAt,
       receivedAtText: receivedAt === "" ? fallbackTime : receivedAt,
@@ -92,17 +104,23 @@ export function parseCompanyMail(envelope: SkillEnvelope | null): MailResult | n
       level: mailLevel(analysis.urgency),
       needsReply: analysis.needsReply === true,
       replyBasis: text(analysis.replyBasis),
+      reminderCandidate: analysis.reminderCandidate === true,
+      priority: text(analysis.priority),
+      priorityLabel: text(analysis.priorityLabel),
     });
   }
   const count = typeof raw.count === "number" && Number.isFinite(raw.count) ? raw.count : items.length;
   const audit = record(raw.audit);
   const fetchedRaw = text(raw.fetchedAt) === "" ? text(audit.collectedAt) : text(raw.fetchedAt);
+  const sourceSystem = text(raw.sourceSystem);
   return {
     count,
     items,
     fetchedAt: fullTime(fetchedRaw),
     needsReplyCount: items.filter((item) => item.needsReply).length,
+    reminderCandidateCount: items.filter((item) => item.reminderCandidate).length,
     hasUrgent: items.some((item) => item.level === "urgent"),
     hasAttention: items.some((item) => item.level === "attention"),
+    sourceSystem: sourceSystem === "" ? undefined : sourceSystem,
   };
 }

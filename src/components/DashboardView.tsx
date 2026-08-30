@@ -15,7 +15,7 @@ interface Props {
   snapshot: DashboardSnapshot;
   onNavigate: (sectionId: string) => void;
   onOpenMailReply: (message: DashboardSnapshot["mailItems"][number]) => void;
-  replyingMailIds: ReadonlySet<number>;
+  replyingMailIds: ReadonlySet<number | string>;
   homeModules: HomeModuleConfig;
   onHomeModuleOrderChange: (order: HomeModuleId[]) => void;
 }

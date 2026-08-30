@@ -1,18 +1,18 @@
 import { useState } from "react";
-import { Bell, Calendar, Clock, FileText, Flag, Sparkles, StickyNote, X } from "lucide-react";
+import { AlignLeft, Bell, Calendar, Clock, FileText, Flag, MapPin, Sparkles, StickyNote, Tag, X } from "lucide-react";
 import {
   fullTime,
   levelClass,
   levelTitle,
   shortTime,
   timeRange,
-  type NativeCalendarEvent,
-  type NativeCalendarReminder,
-  type NativeCalendarResult,
-} from "@/lib/nativeCalendar";
+  type OaScheduleEvent,
+  type OaScheduleReminder,
+  type OaScheduleResult,
+} from "@/lib/oaSchedule";
 
 interface Props {
-  result: NativeCalendarResult | null;
+  result: OaScheduleResult | null;
 }
 
 function Detail({ icon, label, text }: { icon: React.ReactNode; label: string; text: string }) {
@@ -24,13 +24,13 @@ function Detail({ icon, label, text }: { icon: React.ReactNode; label: string; t
   );
 }
 
-function EventSheet({ event, onClose }: { event: NativeCalendarEvent; onClose: () => void }) {
+function EventSheet({ event, onClose }: { event: OaScheduleEvent; onClose: () => void }) {
   return (
     <div className="jv-sheet-backdrop" onClick={onClose}>
       <div className="jv-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="jv-sheet-header">
           <div>
-            <div className="jv-title">日历详情</div>
+          <div className="jv-title">日程详情</div>
             <div className="jv-caption jv-muted">{event.title}</div>
           </div>
           <button type="button" className="jv-icon-plain" title="关闭" onClick={onClose}>
@@ -42,14 +42,17 @@ function EventSheet({ event, onClose }: { event: NativeCalendarEvent; onClose: (
           <Detail icon={<Clock size={15} strokeWidth={2} />} label="时间" text={event.isAllDay ? "全天" : timeRange(event.start, event.end)} />
           <Detail icon={<Calendar size={15} strokeWidth={2} />} label="日历" text={event.calendar} />
           <Detail icon={<Flag size={15} strokeWidth={2} />} label="级别" text={levelTitle(event.priority)} />
+          <Detail icon={<Tag size={15} strokeWidth={2} />} label="分类" text={event.itemType} />
+          <Detail icon={<MapPin size={15} strokeWidth={2} />} label="地点" text={event.place || "未填写"} />
+          {event.description && <Detail icon={<AlignLeft size={15} strokeWidth={2} />} label="描述" text={event.description} />}
           <Detail icon={<Sparkles size={15} strokeWidth={2} />} label="推荐理由" text={event.reasons.length === 0 ? "未获取" : event.reasons.join("\n")} />
-        </div>
+       </div>
       </div>
     </div>
   );
 }
 
-function ReminderSheet({ reminder, onClose }: { reminder: NativeCalendarReminder; onClose: () => void }) {
+function ReminderSheet({ reminder, onClose }: { reminder: OaScheduleReminder; onClose: () => void }) {
   return (
     <div className="jv-sheet-backdrop" onClick={onClose}>
       <div className="jv-sheet" onClick={(e) => e.stopPropagation()}>
@@ -74,16 +77,16 @@ function ReminderSheet({ reminder, onClose }: { reminder: NativeCalendarReminder
   );
 }
 
-export default function NativeCalendarView({ result }: Props) {
-  const [selectedEvent, setSelectedEvent] = useState<NativeCalendarEvent | null>(null);
-  const [selectedReminder, setSelectedReminder] = useState<NativeCalendarReminder | null>(null);
+export default function OaScheduleView({ result }: Props) {
+  const [selectedEvent, setSelectedEvent] = useState<OaScheduleEvent | null>(null);
+  const [selectedReminder, setSelectedReminder] = useState<OaScheduleReminder | null>(null);
 
   if (result === null) {
     return (
       <div className="jv-card">
         <div className="jv-empty">
-          <div className="jv-title">日历提醒</div>
-          <div className="jv-body jv-muted">未获取到数据。请先运行 native-calendar Skill，把输出 JSON 写入数据目录后刷新。</div>
+          <div className="jv-title">日程提醒</div>
+          <div className="jv-body jv-muted">未获取到数据。请先运行 oa-schedule Skill，把输出 JSON 写入数据目录后刷新。</div>
         </div>
       </div>
     );
@@ -93,9 +96,9 @@ export default function NativeCalendarView({ result }: Props) {
     <div className="jv-card">
       <div className="jv-skill-header">
         <div>
-          <div className="jv-title">日历提醒</div>
+          <div className="jv-title">日程提醒</div>
           <div className="jv-caption jv-muted">
-            今日日程 {result.summaryEventCount} 项 · 提醒 {result.summaryReminderCount} 项 · 逾期提醒 {result.summaryOverdueReminderCount} 项 · 首页推荐 {result.summaryHomepageItems} 项 · 来源：macOS Calendar / Reminders · 采集 {result.fetchedAt}
+            今日日程 {result.summaryEventCount} 项 · 首页推荐 {result.summaryHomepageItems} 项 · 来源：OA 日程 · 采集 {result.fetchedAt}
           </div>
         </div>
         <span className="jv-pill jv-pill-normal jv-caption">只读展示</span>

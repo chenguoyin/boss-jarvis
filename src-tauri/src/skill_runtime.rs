@@ -10,6 +10,18 @@ use std::time::{Duration, Instant};
 const FETCH_TIMEOUT_SECS: u64 = 150;
 const FETCH_CONCURRENCY: usize = 4;
 
+/// 共享 OA 登录会话的 Skill：并发登录会互相顶号导致整批超时。
+/// reminder-center / daily-briefing 内部 spawn oa-todo，oa-schedule 内部 spawn OA 脚本，一并归入串行组。
+const OA_SESSION_SKILLS: &[&str] = &[
+    "oa-todo",
+    "spm-todo",
+    "oa-schedule",
+    "reminder-center",
+    "daily-briefing",
+    "hongyi-today-metrics",
+    "hongyi-business-overview",
+];
+
 #[derive(Debug)]
 pub struct RunOutcome {
     pub ok: bool,
@@ -85,12 +97,20 @@ pub fn build_environment() -> HashMap<String, String> {
     // 脚本按 PLAYWRIGHT_BROWSERS_PATH 离线定位，无需首次联网下载 Chromium。
     #[cfg(target_os = "windows")]
     {
-        if let Ok(exe) = std::env::current_exe() {
-            if let Some(parent) = exe.parent() {
-                env.insert(
-                    "PLAYWRIGHT_BROWSERS_PATH".to_string(),
-                    parent.join(".playwright-browsers").to_string_lossy().into_owned(),
-                );
+        if env.get("PLAYWRIGHT_BROWSERS_PATH").map(|v| v.is_empty()).unwrap_or(true) {
+            if let Ok(exe) = std::env::current_exe() {
+                if let Some(parent) = exe.parent() {
+                    let candidates = [
+                        parent.join(".playwright-browsers"),
+                        parent.join("playwright-browsers"),
+                    ];
+                    if let Some(dir) = candidates.iter().find(|d| d.is_dir()) {
+                        env.insert(
+                            "PLAYWRIGHT_BROWSERS_PATH".to_string(),
+                            dir.to_string_lossy().into_owned(),
+                        );
+                    }
+                }
             }
         }
     }
@@ -131,12 +151,26 @@ pub fn run_with_timeout(
     script: &Path,
     args: &[String],
     timeout_secs: u64,
+    stderr_handler: Option<Box<dyn Fn(String) + Send>>,
 ) -> RunOutcome {
     let env = build_environment();
     let mut command = Command::new(runner);
+    // PowerShell 默认执行策略（Restricted）会直接拒绝运行 .ps1 并以 exit 1 结束，
+    // 不产出任何 JSON。这里统一用 -NoProfile -ExecutionPolicy Bypass -File 启动。
+    if runner.eq_ignore_ascii_case("powershell")
+        || script.extension().and_then(|e| e.to_str()) == Some("ps1")
+    {
+        command
+            .arg("-NoProfile")
+            .arg("-ExecutionPolicy")
+            .arg("Bypass")
+            .arg("-File")
+            .arg(script)
+            .args(args);
+    } else {
+        command.arg(script).args(args);
+    }
     command
-        .arg(script)
-        .args(args)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .current_dir(script.parent().unwrap_or(Path::new(".")));
@@ -158,17 +192,26 @@ pub fn run_with_timeout(
     };
 
     let mut stdout_pipe = child.stdout.take().expect("stdout piped");
-    let mut stderr_pipe = child.stderr.take().expect("stderr piped");
+    let stderr_pipe = child.stderr.take().expect("stderr piped");
     let (out_tx, out_rx) = mpsc::channel::<String>();
     let (err_tx, err_rx) = mpsc::channel::<String>();
-    std::thread::spawn(move || {
+   std::thread::spawn(move || {
+       let mut buf = String::new();
+       let _ = stdout_pipe.read_to_string(&mut buf);
+       let _ = out_tx.send(buf);
+   });
+   std::thread::spawn(move || {
+        // stderr 行式读取：每行立即传给 handler，同时攒到 buf 等进程结束后返回完整内容。
         let mut buf = String::new();
-        let _ = stdout_pipe.read_to_string(&mut buf);
-        let _ = out_tx.send(buf);
-    });
-    std::thread::spawn(move || {
-        let mut buf = String::new();
-        let _ = stderr_pipe.read_to_string(&mut buf);
+        use std::io::{BufRead, BufReader};
+        let mut reader = BufReader::new(stderr_pipe).lines();
+        while let Some(Ok(line)) = reader.next() {
+            buf.push_str(&line);
+            buf.push('\n');
+            if let Some(ref h) = stderr_handler {
+                h(line);
+            }
+        }
         let _ = err_tx.send(buf);
     });
 
@@ -238,23 +281,26 @@ pub struct FetchOutcome {
 pub struct FetchProgress {
     pub skill: String,
     pub label: String,
-    pub phase: &'static str,
+    pub phase: String,
 }
 
-pub type ProgressCallback = Arc<dyn Fn(FetchProgress) + Send + Sync>;
+/// skill + label 固定，phase/detail 随时更新。
+#[derive(Clone)]
+pub struct ProgressCtx {
+    pub skill: String,
+    pub label: String,
+}
+
+pub type ProgressCallback = Arc<dyn Fn(String, String, String, String) + Send + Sync>;
 
 fn emit_progress(
     progress: &Option<ProgressCallback>,
-    skill: &str,
-    label: &str,
+    ctx: &ProgressCtx,
     phase: &'static str,
+    detail: String,
 ) {
     if let Some(callback) = progress {
-        callback(FetchProgress {
-            skill: skill.to_string(),
-            label: label.to_string(),
-            phase,
-        });
+        callback(ctx.skill.clone(), ctx.label.clone(), phase.to_string(), detail);
     }
 }
 
@@ -271,10 +317,14 @@ pub fn fetch_skill_tracked(
         .resolve(id)
         .map(|(_, display, _)| display)
         .unwrap_or_else(|| id.to_string());
-    emit_progress(&progress, id, &label, "running");
+    let ctx = ProgressCtx {
+        skill: id.to_string(),
+        label: label.clone(),
+    };
+    emit_progress(&progress, &ctx, "running", String::new());
     let outcome = fetch_skill_inner(manifest, id);
     let phase = if outcome.ok { "done" } else { "failed" };
-    emit_progress(&progress, id, &label, phase);
+    emit_progress(&progress, &ctx, phase, String::new());
     outcome
 }
 
@@ -303,15 +353,19 @@ fn fetch_skill_inner(manifest: &crate::manifest::Manifest, id: &str) -> FetchOut
     // boss-cockpit 是聚合器：由壳层传入已有契约 JSON，避免它在取数链路里再次
     // 逐个执行上游 Skill；同时保证任一数据源缺失时仍能产出其余数据的驾驶舱。
     let mut args = resolved.args.clone();
+    if id == "changhong-mail" && resolved.runner == "node" {
+        // 邮件信封 stdout 体积过大易被管道截断，改为脚本直写文件、壳层读文件。
+        args.push(format!("--output={}", output_file.display()));
+    }
     if id == "boss-cockpit" {
-        for source in ["oa-todo", "company-mail", "native-calendar", "spm-todo"] {
+        for source in ["oa-todo", "changhong-mail", "oa-schedule", "spm-todo"] {
             let path = data_dir().join(format!("{source}.json"));
             if path.is_file() {
                 args.push(format!("--source={source}:{}", path.display()));
             }
         }
     }
-    let result = run_with_timeout(&resolved.runner, &script, &args, FETCH_TIMEOUT_SECS);
+    let result = run_with_timeout(&resolved.runner, &script, &args, FETCH_TIMEOUT_SECS, None);
     if !result.ok {
         let error = prefer_json_error(&result.stdout, &result.stderr, &result.error);
         log_fetch(&skill, false, &error, &result.stdout, &result.stderr);
@@ -323,17 +377,27 @@ fn fetch_skill_inner(manifest: &crate::manifest::Manifest, id: &str) -> FetchOut
         };
     }
 
-    let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&result.stdout) else {
-        let error = "输出不是 JSON".to_string();
-        log_fetch(&skill, false, &error, &result.stdout, &result.stderr);
-        record_audit_failure(&skill, &error);
-        return FetchOutcome {
-            skill,
-            ok: false,
-            error,
-        };
+    // changhong-mail 优先读脚本写入的 JSON 文件，避免大 stdout 被管道截断。
+    let stdout_source = if id == "changhong-mail" {
+        std::fs::read_to_string(&output_file).unwrap_or_else(|_| result.stdout.clone())
+    } else {
+        result.stdout.clone()
+    };
+    let parsed = match serde_json::from_str::<serde_json::Value>(stdout_source.trim()) {
+        Ok(v) => v,
+        Err(e) => {
+            let error = format!("输出不是 JSON: {}", e);
+            log_fetch(&skill, false, &error, &result.stdout, &result.stderr);
+            record_audit_failure(&skill, &error);
+            return FetchOutcome {
+                skill,
+                ok: false,
+                error,
+            };
+        }
     };
 
+    let mut parsed = parsed;
     if parsed.get("ok").and_then(|v| v.as_bool()) == Some(false) {
         let detail = parsed
             .get("error")
@@ -351,12 +415,72 @@ fn fetch_skill_inner(manifest: &crate::manifest::Manifest, id: &str) -> FetchOut
         };
     }
 
+    if id == "changhong-mail" {
+        attach_mail_analysis(&manifest, &mut parsed);
+    }
     write_json(&output_file, &parsed);
-    log_fetch(&skill, true, "", "", "");
+    log_fetch(&skill, true, "", &result.stdout, &result.stderr);
     FetchOutcome {
         skill,
         ok: true,
         error: String::new(),
+    }
+}
+
+/// Windows 的 Outlook 取数器不自带 analysis；这里统一补一次只读规则分析。
+/// 脚本或 node 缺失时保持原样，不让邮件功能整体失败。
+fn attach_mail_analysis(manifest: &crate::manifest::Manifest, parsed: &mut serde_json::Value) {
+    let Some(rows) = parsed.get_mut("rows").and_then(|value| value.as_array_mut()) else {
+        return;
+    };
+    if !rows.iter().any(|row| row.get("analysis").is_none()) {
+        return;
+    }
+    let analyzer = manifest.skills_root().join("mail-analysis/analyze-mails.cjs");
+    if !analyzer.is_file() {
+        return;
+    }
+    let Ok(input) = serde_json::to_string(rows) else {
+        return;
+    };
+    let env = build_environment();
+    let mut command = Command::new("node");
+    command
+        .arg(&analyzer)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .current_dir(analyzer.parent().unwrap_or(Path::new(".")));
+    hide_child_console(&mut command);
+    for (key, value) in &env {
+        command.env(key, value);
+    }
+    let Ok(mut child) = command.spawn() else {
+        return;
+    };
+    if let Some(mut stdin) = child.stdin.take() {
+        use std::io::Write;
+        let _ = stdin.write_all(input.as_bytes());
+    }
+    let Ok(output) = child.wait_with_output() else {
+        return;
+    };
+    let Ok(analyzed) = serde_json::from_slice::<serde_json::Value>(&output.stdout) else {
+        return;
+    };
+    let Some(new_rows) = analyzed.get("rows").and_then(|value| value.as_array()) else {
+        return;
+    };
+    let count = new_rows.len();
+    let homepage: Vec<serde_json::Value> = new_rows
+        .iter()
+        .filter(|row| row.pointer("/analysis/urgency").and_then(|v| v.as_str()) != Some("green"))
+        .cloned()
+        .collect();
+    *rows = new_rows.clone();
+    if let Some(obj) = parsed.as_object_mut() {
+        obj.insert("count".to_string(), serde_json::json!(count));
+        obj.insert("homepageItems".to_string(), serde_json::json!(homepage));
     }
 }
 
@@ -376,7 +500,11 @@ pub fn fetch_skills_tracked(
             .resolve(id)
             .map(|(_, display, _)| display)
             .unwrap_or_else(|| id.clone());
-        emit_progress(&progress, id, &label, "pending");
+        let ctx = ProgressCtx {
+            skill: id.clone(),
+            label: label.clone(),
+        };
+        emit_progress(&progress, &ctx, "pending", String::new());
     }
     if ids.len() <= 1 {
         return ids
@@ -393,17 +521,49 @@ pub fn fetch_skills_tracked(
                 .build()
                 .expect("fallback rayon pool")
         });
-    ids.iter()
-        .map(|id| {
-            pool.install(|| {
-                std::panic::catch_unwind(AssertUnwindSafe(|| {
-                    fetch_skill_tracked(manifest, id, progress.clone())
-                }))
+    // OA 串行组作为一个整体占一个并发位，其余 Skill 各自并发。
+    let serial: Vec<String> = ids
+        .iter()
+        .filter(|id| OA_SESSION_SKILLS.contains(&id.as_str()))
+        .cloned()
+        .collect();
+    let mut groups: Vec<Vec<String>> = Vec::new();
+    if !serial.is_empty() {
+        groups.push(serial);
+    }
+    for id in ids {
+        if !OA_SESSION_SKILLS.contains(&id.as_str()) {
+            groups.push(vec![id.clone()]);
+        }
+    }
+    let mut by_id: HashMap<String, FetchOutcome> = HashMap::new();
+    let outcomes: Vec<FetchOutcome> = pool.install(|| {
+        use rayon::prelude::*;
+        groups
+            .par_iter()
+            .flat_map_iter(|group| {
+                group.iter().map(|id| {
+                    std::panic::catch_unwind(AssertUnwindSafe(|| {
+                        fetch_skill_tracked(manifest, id, progress.clone())
+                    }))
                     .unwrap_or_else(|_| FetchOutcome {
                         skill: id.clone(),
                         ok: false,
                         error: "取数任务异常退出".to_string(),
                     })
+                })
+            })
+            .collect()
+    });
+    for outcome in outcomes {
+        by_id.insert(outcome.skill.clone(), outcome);
+    }
+    ids.iter()
+        .map(|id| {
+            by_id.remove(id).unwrap_or_else(|| FetchOutcome {
+                skill: id.clone(),
+                ok: false,
+                error: "取数任务异常退出".to_string(),
             })
         })
         .collect()
@@ -457,80 +617,18 @@ fn envelope_failure_summary(payload: &serde_json::Value) -> Option<String> {
 
 fn log_fetch(skill: &str, ok: bool, error: &str, stdout: &str, stderr: &str) {
     use std::fmt::Write as _;
-    use std::io::Write;
-    let dir = crate::paths::logs_dir();
-    let _ = std::fs::create_dir_all(&dir);
     let mut line = String::new();
     let _ = write!(
         line,
         "{} skill={} ok={} error={} stdout={} stderr={}\n",
-        iso_now(),
+        crate::runtime_log::iso_now(),
         skill,
         ok,
         error,
-        truncate(stdout, 400),
-        truncate(stderr, 400)
+        crate::runtime_log::truncate_head(stdout, 400),
+        crate::runtime_log::truncate_head(stderr, 4000)
     );
-    let path = dir.join("fetch.log");
-    rotate_log_if_needed(&path);
-    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
-        let _ = f.write_all(line.as_bytes());
-    }
-}
-
-const FETCH_LOG_MAX_BYTES: u64 = 2 * 1024 * 1024;
-
-/// 日志压缩轮转：超过 2MB 归档为 fetch.log.1，只保留一代，避免长期运行撑爆磁盘。
-fn rotate_log_if_needed(path: &Path) {
-    let Ok(meta) = std::fs::metadata(path) else {
-        return;
-    };
-    if meta.len() <= FETCH_LOG_MAX_BYTES {
-        return;
-    }
-    let archived = dir_archive_path(path);
-    let _ = std::fs::remove_file(&archived);
-    if std::fs::rename(path, &archived).is_err() {
-        let _ = std::fs::remove_file(path);
-    }
-}
-
-fn dir_archive_path(path: &Path) -> PathBuf {
-    let mut name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-    name.push_str(".1");
-    path.with_file_name(name)
-}
-
-fn iso_now() -> String {
-    let secs = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0);
-    let days = secs / 86400;
-    let rem = secs % 86400;
-    let (h, _m, s) = (rem / 3600, (rem % 3600) / 60, rem % 60);
-    let z = days as i64 + 719468;
-    let era = z.div_euclid(146097);
-    let doe = z.rem_euclid(146097);
-    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
-    let y = yoe + era * 400;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let d = doy - (153 * mp + 2) / 5 + 1;
-    let m = if mp < 10 { mp + 3 } else { mp - 9 };
-    let y = if m <= 2 { y + 1 } else { y };
-    format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z", y, m, d, h, m, s)
-}
-
-fn truncate(s: &str, max: usize) -> String {
-    if s.len() <= max {
-        return s.to_string();
-    }
-    let mut end = max;
-    while end > 0 && !s.is_char_boundary(end) {
-        end -= 1;
-    }
-    format!("{}…", &s[..end])
+    crate::runtime_log::append_log_line("fetch.log", &line);
 }
 
 /// 取数失败同时写审计（record-audit.cjs append）；审计失败不影响取数主流程。
@@ -546,8 +644,8 @@ fn record_audit_failure(skill: &str, error: &str) {
         "mode": "read_only",
         "status": "failed",
         "sourceSystem": "工作台取数",
-        "resultSummary": format!("取数失败：{}", truncate(error, 400)),
-        "error": truncate(error, 400),
+        "resultSummary": format!("取数失败：{}", crate::runtime_log::truncate_head(error, 400)),
+        "error": crate::runtime_log::truncate_head(error, 400),
         "target": { "title": skill }
     });
     let env = build_environment();

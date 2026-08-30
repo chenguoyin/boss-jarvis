@@ -37,7 +37,7 @@ function statusLevel(value: string): string {
 export default function AuditLogView({ result, isRunning, onRefresh }: Props) {
   if (result.dates.length === 0) {
     return (
-      <div className="jv-card">
+      <div className="jv-card jv-card-selectable">
         <div className="jv-empty">
           <Shield size={40} strokeWidth={1.5} />
           <div className="jv-title">审计日志</div>
@@ -48,7 +48,7 @@ export default function AuditLogView({ result, isRunning, onRefresh }: Props) {
   }
 
   return (
-    <div className="jv-card">
+    <div className="jv-card jv-card-selectable">
       <div className="jv-skill-header">
         <div>
           <div className="jv-title">审计日志</div>

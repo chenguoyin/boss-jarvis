@@ -1,13 +1,13 @@
 import { useState } from "react";
-import { FileText, Lightbulb, MailOpen, RefreshCw, Reply, X } from "lucide-react";
+import { CalendarClock, FileText, Lightbulb, MailOpen, RefreshCw, Reply, X } from "lucide-react";
 import { mailLevelTitle, type MailLevel, type MailMessage, type MailResult } from "@/lib/mail";
 
 interface Props {
   result: MailResult | null;
   readStatus: string | null;
   replyStatus: string | null;
-  replyingIds: ReadonlySet<number>;
-  hiddenIds: ReadonlySet<number>;
+  replyingIds: ReadonlySet<number | string>;
+  hiddenIds: ReadonlySet<number | string>;
   onMarkRead: (message: MailMessage) => void;
   onOpenReply: (message: MailMessage) => void;
 }
@@ -18,6 +18,39 @@ function LevelBadge({ level }: { level: MailLevel }) {
       {mailLevelTitle(level)}
     </span>
   );
+}
+
+function PriorityBadge({ label }: { label: string }) {
+  if (label === "") return null;
+  return (
+    <span className="jv-caption jv-mail-priority-badge">
+      {label}
+    </span>
+  );
+}
+
+// 生成简短分析文案（100字内）
+function buildAnalysisSnippet(message: MailMessage): string {
+  if (!message.needsReply) {
+    return "通知类，无需回复";
+  }
+  const basis = message.replyBasis || "需要回复";
+  // 如果有明确截止时间
+  if (message.reminderCandidate) {
+    return "需回复：" + basis + "，已识别截止时间";
+  }
+  return "需回复：" + basis;
+}
+
+function mailBodyHtml(message: MailMessage): string {
+  if (message.bodyHtml !== "") return message.bodyHtml;
+  const escaped = message.bodySummary === ""
+    ? "未获取"
+    : message.bodySummary
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+  return '<div style="font:menu;line-height:1.65;color:CanvasText;padding:16px;white-space:pre-wrap;word-break:break-word;">' + escaped + '</div>';
 }
 
 function DetailSheet({
@@ -43,25 +76,21 @@ function DetailSheet({
               发件人：{message.sender === "" ? "未获取" : message.sender} · 时间：{message.displayTime}
             </div>
           </div>
-          <LevelBadge level={message.level} />
+          <div className="jv-mail-sheet-badges">
+            <LevelBadge level={message.level} />
+            <PriorityBadge label={message.priorityLabel} />
+          </div>
           <button type="button" className="jv-icon-plain" title="关闭" onClick={onClose}>
             <X size={15} strokeWidth={2} />
           </button>
         </div>
         <div className="jv-sheet-body">
-          {message.bodyHtml === "" ? (
-            <section className="jv-sheet-section">
-              <div className="jv-body jv-sheet-label"><FileText size={15} strokeWidth={2} />正文摘要</div>
-              <div className="jv-body jv-sheet-text">{message.bodySummary === "" ? "未获取" : message.bodySummary}</div>
-            </section>
-          ) : (
-            <section className="jv-sheet-section jv-mail-body-section">
-              <div className="jv-body jv-sheet-label"><FileText size={15} strokeWidth={2} />邮件正文</div>
-              <div className="jv-mail-html">
-                <iframe title="邮件正文" sandbox="" srcDoc={message.bodyHtml} />
-              </div>
-            </section>
-          )}
+          <section className="jv-sheet-section jv-mail-body-section">
+            <div className="jv-body jv-sheet-label"><FileText size={15} strokeWidth={2} />邮件正文</div>
+            <div className="jv-mail-html">
+              <iframe title="邮件正文" sandbox="" srcDoc={mailBodyHtml(message)} />
+            </div>
+          </section>
           <section className="jv-sheet-section">
             <div className="jv-body jv-sheet-label">
               <Lightbulb size={15} strokeWidth={2} className={message.needsReply ? "jv-level-attention" : undefined} />
@@ -69,6 +98,12 @@ function DetailSheet({
             </div>
             <div className="jv-body jv-sheet-text">{message.replyBasis === "" ? "未获取" : message.replyBasis}</div>
           </section>
+          {message.reminderCandidate && (
+            <div className="jv-caption jv-mail-reminder-note">
+              <CalendarClock size={15} strokeWidth={2} />
+              已识别到行动截止时间，建议创建日历提醒
+            </div>
+          )}
           {replyStatus !== null && (
             <div className="jv-caption jv-mail-action-status">{replyStatus}</div>
           )}
@@ -111,7 +146,7 @@ export default function MailView({
           <MailOpen size={40} strokeWidth={1.5} />
           <div className="jv-title">邮件 · 未获取</div>
           <div className="jv-body jv-muted">
-            未获取到数据。请先运行 company-mail Skill，把输出 JSON 写入数据目录后刷新。
+            未获取到数据。请先运行邮件 Skill，把输出 JSON 写入数据目录后刷新。
           </div>
         </div>
       </div>
@@ -124,7 +159,7 @@ export default function MailView({
         <div>
           <div className="jv-title">邮件</div>
           <div className="jv-caption jv-muted">
-            未读 {result.count} 封 · 需回复 {result.needsReplyCount} 封 · 来源：macOS Mail · 采集 {result.fetchedAt}
+            未读 {result.count} 封 · 需回复 {result.needsReplyCount} 封 · 待提醒 {result.reminderCandidateCount} 封 · 来源：{result.sourceSystem ?? "邮件"} · 采集 {result.fetchedAt}
             {hiddenCount > 0 ? ` · 本次已同步已读 ${hiddenCount} 封` : ""}
           </div>
         </div>
@@ -138,42 +173,62 @@ export default function MailView({
       {result.items.length === 0 ? (
         <div className="jv-body jv-muted jv-mail-empty">当前没有未读邮件</div>
       ) : (
-        <div className="jv-mail-list">
-          <div className="jv-mail-row jv-mail-row-head">
-            <span>#</span>
-            <span>主题</span>
-            <span>发件人</span>
-            <span>级别</span>
-            <span>时间</span>
-            <span />
-          </div>
-          {result.items.map((message, index) => (
-            <button
-              type="button"
-              key={message.id}
-              className="jv-mail-row jv-mail-row-body"
-              title="查看详情并同步为已读"
-              onClick={() => {
-                setSelected(message);
-                onMarkRead(message);
-              }}
-            >
-              <span className="jv-caption jv-mail-index">{index + 1}</span>
-              <span className="jv-mail-main">
-                <span className="jv-mail-title-line">
-                  {message.needsReply && <span className="jv-mail-dot" />}
-                  <span className="jv-body jv-mail-subject">{message.subject}</span>
-                </span>
-                {message.needsReply && message.replyBasis !== "" && (
-                  <span className="jv-caption jv-mail-basis">{message.replyBasis}</span>
-                )}
-              </span>
-              <span className="jv-caption jv-mail-sender">{message.sender === "" ? "未获取" : message.sender}</span>
-              <span className={"jv-caption jv-level-" + message.level}>{mailLevelTitle(message.level)}</span>
-              <span className="jv-caption jv-mail-time">{message.displayTime}</span>
-              <span />
-            </button>
-          ))}
+        <div className="jv-mail-card-list">
+          {result.items.map((message, index) => {
+            const analysisSnippet = buildAnalysisSnippet(message);
+            const isReplying = replyingIds.has(message.id);
+            return (
+              <div
+                key={message.id}
+                className="jv-mail-card"
+                onClick={() => {
+                  setSelected(message);
+                  onMarkRead(message);
+                }}
+              >
+                <div className="jv-mail-card-header">
+                  <span className="jv-caption jv-mail-index">{index + 1}</span>
+                  <div className="jv-mail-card-main">
+                    <div className="jv-mail-card-subject-line">
+                      <span className="jv-body jv-mail-subject">{message.subject}</span>
+                    </div>
+                    <div className="jv-mail-card-sender">{message.sender === "" ? "未获取" : message.sender}</div>
+                    <div className="jv-mail-card-meta">
+                      <span className="jv-caption jv-mail-time">{message.displayTime}</span>
+                      <LevelBadge level={message.level} />
+                      <PriorityBadge label={message.priorityLabel} />
+                    </div>
+                  </div>
+                </div>
+                <div className="jv-mail-card-footer">
+                  <div className="jv-mail-card-analysis">
+                    {message.needsReply ? (
+                      <span className="jv-mail-analysis-highlight">需回复</span>
+                    ) : (
+                      <span className="jv-mail-analysis-ok">通知类</span>
+                    )}
+                    <span className="jv-mail-analysis-text">，{analysisSnippet.replace(/^(需回复：|通知类，)/, "")}</span>
+                  </div>
+                  {message.needsReply && (
+                    <button
+                      type="button"
+                      className="jv-mail-card-reply-btn"
+                      disabled={isReplying}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onOpenReply(message);
+                      }}
+                    >
+                      {isReplying
+                        ? <RefreshCw size={13} strokeWidth={2} className="jv-refresh-spin" />
+                        : <Reply size={13} strokeWidth={2} />}
+                      {isReplying ? "正在生成草稿..." : "回复"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
       {selected && (

@@ -13,7 +13,7 @@ Tauri 2 单壳（一套代码，双端复用）
 └── skills/manifest.json → Skill → 平台 → 脚本唯一入口
 ```
 
-平台差异只收敛在 Skill 层：通用 Skill 双端复用；邮件/日历等原生能力按 macos/windows 在 manifest 分叉，输出同一份 JSON 契约。
+平台差异只收敛在 Skill 层：通用 Skill 双端复用；邮件统一通过 `changhong-mail` 获取和执行动作，不在 App 或 manifest 区分 macOS/Windows。
 
 ## 当前范围
 

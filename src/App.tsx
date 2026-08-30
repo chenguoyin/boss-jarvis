@@ -7,9 +7,10 @@ import ConfirmationCenterView from "./components/ConfirmationCenterView";
 import SettingsView from "./components/SettingsView";
 import AssistantChatPanel from "./components/AssistantChatPanel";
 import { parseCompanyMail } from "./lib/mail";
+import { parseDailyBriefing } from "./lib/dailyBriefing";
 import AboutDialog from "./components/AboutDialog";
 import HomeModuleCustomizer from "./components/HomeModuleCustomizer";
-import { RefreshCw, SquareDashed } from "lucide-react";
+import { Bell, RefreshCw, SquareDashed, X } from "lucide-react";
 import { appSections, confirmationSection, sectionById, settingsSection } from "./lib/sections";
 import { useSkillData } from "./hooks/useSkillData";
 import {
@@ -24,6 +25,7 @@ import {
   readSkillData,
   readWeeklySummaryArchive,
   selectSkillDirectory,
+  setDockBadge,
   toggleSkill,
   toggleMaximize,
   uninstallSkill,
@@ -84,6 +86,8 @@ export default function App() {
     refreshAll,
   } = useSkillData(sectionSkills, fetchableSkills);
   const [briefingEnvelope, setBriefingEnvelope] = useState<SkillEnvelope | null>(null);
+  const [briefingNotice, setBriefingNotice] = useState<{ count: number; items: string[] } | null>(null);
+  const briefingNoticeSignatureRef = useRef("");
   const [weeklyRaw, setWeeklyRaw] = useState<unknown>(null);
   const [weeklyDates, setWeeklyDates] = useState<string[]>([]);
   const [weeklyDate, setWeeklyDate] = useState("");
@@ -99,9 +103,9 @@ export default function App() {
   const [oaApprovalStatus, setOaApprovalStatus] = useState<string | null>(null);
   const [mailReadStatus, setMailReadStatus] = useState<string | null>(null);
   const [mailReplyStatus, setMailReplyStatus] = useState<string | null>(null);
-  const [markingReadIds, setMarkingReadIds] = useState<Set<number>>(new Set());
-  const [replyingIds, setReplyingIds] = useState<Set<number>>(new Set());
-  const [hiddenMailIds, setHiddenMailIds] = useState<Set<number>>(new Set());
+  const [markingReadIds, setMarkingReadIds] = useState<Set<number | string>>(new Set());
+  const [replyingIds, setReplyingIds] = useState<Set<number | string>>(new Set());
+  const [hiddenMailIds, setHiddenMailIds] = useState<Set<number | string>>(new Set());
   const [autoRefreshEnabled, setAutoRefreshEnabledState] = useState(loadAutoRefreshEnabled);
   const [autoRefreshInterval, setAutoRefreshIntervalState] = useState(loadAutoRefreshInterval);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<number | null>(null);
@@ -115,6 +119,32 @@ export default function App() {
     if (sectionId !== "briefing") return;
     void readDailyBriefingReport().then(setBriefingEnvelope);
   }, [sectionId, reloadCount]);
+
+  // 启动与每次刷新后把“紧急优先”条数同步到 Dock 角标，并在出现新的紧急事项时弹应用内提醒。
+  useEffect(() => {
+    let cancelled = false;
+    void readDailyBriefingReport()
+      .then((envelope) => (envelope === null ? null : parseDailyBriefing(envelope)))
+      .then((briefing) => {
+        if (cancelled) return;
+        const count = briefing?.mustDoNow ?? 0;
+        void setDockBadge(count > 0 ? count : null).catch(() => {});
+        if (briefing === null || count === 0) {
+          briefingNoticeSignatureRef.current = "";
+          return;
+        }
+        const items = briefing.mustDoItems.slice(0, 3).map((item) => item.title);
+        const signature = `${count}|${items.join("|")}`;
+        if (signature !== briefingNoticeSignatureRef.current) {
+          briefingNoticeSignatureRef.current = signature;
+          setBriefingNotice({ count, items });
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [reloadCount]);
 
   useEffect(() => {
     if (sectionId !== "weekly") return;
@@ -219,7 +249,7 @@ export default function App() {
   );
 
   const oaEnvelope = envelopes["oa-todo"] ?? null;
-  const mailEnvelope = envelopes["company-mail"] ?? null;
+  const mailEnvelope = envelopes["changhong-mail"] ?? null;
   const oaTodoResult = useMemo(() => parseOATodo(oaEnvelope), [oaEnvelope]);
   const mailResult = useMemo(() => parseCompanyMail(mailEnvelope), [mailEnvelope]);
   const badgeFor = useCallback((id: string) => {
@@ -310,7 +340,16 @@ export default function App() {
 
   const handleOaAction = useCallback(async (item: OATodoItem, comment: string, approve: boolean) => {
     setOaApprovalStatus(`正在提交审批：${item.title}`);
-    const outcome = await approveTodo({ skill: "oa-todo", title: item.title, comment, approve })
+    const outcome = await approveTodo({
+      skill: "oa-todo",
+      title: item.title,
+      comment,
+      approve,
+      targetRef: item.targetRef,
+      source: item.source,
+      sender: item.sender || item.creator,
+      time: item.time,
+    })
       .catch((error: unknown) => ({ ok: false, summary: `命令执行失败：${String(error)}` }));
     setOaApprovalStatus(outcome.summary);
     if (outcome.ok) {
@@ -331,7 +370,7 @@ export default function App() {
     if (markingReadIds.has(message.id)) return;
     setMarkingReadIds((current) => new Set(current).add(message.id));
     setMailReadStatus("正在同步已读状态…");
-    void markMailRead(message.id)
+    void markMailRead(String(message.id))
       .catch((error: unknown) => ({ ok: false, summary: `命令执行失败：${String(error)}` }))
       .then((outcome) => {
       setMarkingReadIds((current) => {
@@ -365,8 +404,11 @@ export default function App() {
         return next;
       });
       setMailReplyStatus(outcome.summary);
+      if (outcome.ok) {
+        handleMarkMailRead(message);
+      }
     });
-  }, [replyingIds]);
+  }, [handleMarkMailRead, replyingIds]);
 
   const assistantRuntimeRef = useRef<AssistantRuntime | null>(null);
 
@@ -381,8 +423,8 @@ export default function App() {
   }, [refresh]);
 
   const replyMailForAssistant = useCallback(
-    async (mailId: number): Promise<{ ok: boolean; summary: string } | null> => {
-      const text = await readSkillData("company-mail");
+    async (mailId: number | string): Promise<{ ok: boolean; summary: string } | null> => {
+      const text = await readSkillData("changhong-mail");
       const envelope = text;
       const result = parseCompanyMail(envelope);
       const message = result?.items.find((item) => item.id === mailId);
@@ -413,7 +455,7 @@ export default function App() {
 
   const assistantRuntime: AssistantRuntime = {
     sections: [...appSections.map((s) => s.title), settingsSection.title, confirmationSection.title],
-    skills: ["oa-todo", "reminder-center", "company-mail", "native-calendar", "skill-manager", "daily-briefing", "boss-cockpit", "hongyi-today-metrics", "hongyi-business-overview", "weekly-summary"],
+    skills: ["oa-todo", "reminder-center", "changhong-mail", "oa-schedule", "skill-manager", "daily-briefing", "boss-cockpit", "hongyi-today-metrics", "hongyi-business-overview", "weekly-summary"],
     currentSection: section?.title ?? "驾驶舱",
     onOpenSection: (target) => {
       const match = [ ...appSections, settingsSection, confirmationSection ].find((s) => s.title === target);
@@ -481,7 +523,6 @@ export default function App() {
           isReloading={isReloading}
           activity={activity}
           failures={failures}
-          statuses={skillStatuses}
           lastRefreshedAt={lastRefreshedAt}
           nextAutoRefreshAt={nextAutoRefreshAt}
           onOpenAssistant={() => setAssistantOpen(true)}
@@ -566,6 +607,7 @@ export default function App() {
               }}
               isRunning={isReloading}
               onSectionRefresh={handleSectionRefresh}
+              onBriefingApprovalDone={() => {}}
               fetchStatuses={skillStatuses}
               onNavigate={setSectionId}
               oa={{
@@ -607,6 +649,39 @@ export default function App() {
           onChange={updateHomeModuleConfig}
           onClose={() => setCustomizerOpen(false)}
         />
+      )}
+      {briefingNotice !== null && (
+        <div className="jv-briefing-toast" role="status" aria-live="polite">
+          <div className="jv-briefing-toast-head">
+            <Bell size={15} strokeWidth={2} className="jv-level-urgent" />
+            <span className="jv-body">今日 {briefingNotice.count} 件紧急优先事项</span>
+            <button
+              type="button"
+              className="jv-icon-plain"
+              aria-label="关闭提醒"
+              onClick={() => setBriefingNotice(null)}
+            >
+              <X size={15} strokeWidth={2} />
+            </button>
+          </div>
+          <ul className="jv-briefing-toast-list">
+            {briefingNotice.items.map((item, index) => (
+              <li key={index} className="jv-caption jv-muted">
+                {item}
+              </li>
+            ))}
+          </ul>
+          <button
+            type="button"
+            className="jv-caption jv-briefing-toast-action"
+            onClick={() => {
+              setBriefingNotice(null);
+              setSectionId("briefing");
+            }}
+          >
+            查看每日晨报
+          </button>
+        </div>
       )}
     </div>
   );

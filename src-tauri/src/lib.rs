@@ -2,16 +2,24 @@ mod manifest;
 mod paths;
 mod skill_runtime;
 mod command_runtime;
+mod runtime_log;
+mod notify_runtime;
 mod llm_runtime;
 
 use std::sync::Arc;
+use crate::notify_runtime::set_dock_badge;
 
 fn fetch_progress_callback(
     app: tauri::AppHandle,
 ) -> skill_runtime::ProgressCallback {
     use tauri::Emitter;
-    Arc::new(move |event: skill_runtime::FetchProgress| {
-        let _ = app.emit("skill-fetch-progress", event);
+    // 壳层事件契约：payload 必须是 { skill, label, phase } 对象（useSkillData 按字段解构），
+    // 不能发元组，否则前端解构不出、页面刷新按钮前方不显示实时步骤。
+    Arc::new(move |skill: String, label: String, phase: String, _detail: String| {
+        let _ = app.emit(
+            "skill-fetch-progress",
+            skill_runtime::FetchProgress { skill, label, phase },
+        );
     })
 }
 
@@ -262,9 +270,27 @@ fn read_audit_log_sync(date: String) -> Option<String> {
 }
 
 #[tauri::command]
-async fn approve_todo(skill: String, title: String, comment: String, approve: bool) -> Result<command_runtime::CommandOutcome, String> {
+async fn approve_todo(
+    skill: String,
+    title: String,
+    comment: String,
+    approve: bool,
+    target_ref: Option<serde_json::Value>,
+    source: Option<String>,
+    sender: Option<String>,
+    time: Option<String>,
+) -> Result<command_runtime::CommandOutcome, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        command_runtime::approve_todo(&skill, &title, &comment, approve)
+        command_runtime::approve_todo(
+            &skill,
+            &title,
+            &comment,
+            approve,
+            target_ref,
+            source.as_deref(),
+            sender.as_deref(),
+            time.as_deref(),
+        )
     })
     .await
     .map_err(|error| error.to_string())
@@ -298,7 +324,7 @@ async fn uninstall_skill(skill_id: String) -> Result<command_runtime::CommandOut
 }
 
 #[tauri::command]
-async fn mark_mail_read(message_id: i64) -> Result<command_runtime::CommandOutcome, String> {
+async fn mark_mail_read(message_id: String) -> Result<command_runtime::CommandOutcome, String> {
     tauri::async_runtime::spawn_blocking(move || {
         command_runtime::mark_mail_read(message_id)
     })
@@ -354,8 +380,73 @@ async fn llm_chat(messages: Vec<serde_json::Value>, tools: Vec<serde_json::Value
         .await
 }
 
+/// 定时巡检/提醒管理：读状态与写操作都走 daily-briefing 的 manage-schedule.cjs。
+#[tauri::command]
+async fn schedule_status() -> Result<serde_json::Value, String> {
+    tauri::async_runtime::spawn_blocking(command_runtime::schedule_status)
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+/// 写操作（set-time / install / reload / uninstall）必须经设置页确认后调用。
+#[tauri::command]
+async fn manage_schedule(action: String, time: Option<String>) -> Result<serde_json::Value, String> {
+    tauri::async_runtime::spawn_blocking(move || command_runtime::manage_schedule(&action, time.as_deref()))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+/// 便携模式自举：exe 同级目录自带 WebView2/node/skills 时自动启用，
+/// 双击 exe 即可运行，不依赖 start.bat 预设环境变量。
+fn setup_portable_env() {
+    let Ok(current_exe) = std::env::current_exe() else { return };
+    let Some(exe_dir) = current_exe.parent() else { return };
+    let _ = std::env::set_current_dir(exe_dir);
+
+    // WebView2 固定版运行时：WebView2/Microsoft.WebView2.FixedVersionRuntime.*/
+    if std::env::var_os("WEBVIEW2_BROWSER_EXECUTABLE_FOLDER").is_none() {
+        if let Ok(entries) = std::fs::read_dir(exe_dir.join("WebView2")) {
+            for entry in entries.flatten() {
+                let dir = entry.path();
+                let is_runtime = dir
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .map(|name| name.starts_with("Microsoft.WebView2.FixedVersionRuntime"))
+                    .unwrap_or(false);
+                if is_runtime && dir.join("msedgewebview2.exe").exists() {
+                    std::env::set_var("WEBVIEW2_BROWSER_EXECUTABLE_FOLDER", &dir);
+                    break;
+                }
+            }
+        }
+    }
+
+    // 便携 Node：node/node.exe 前置到 PATH。
+    let node_dir = exe_dir.join("node");
+    if node_dir.join("node.exe").exists() {
+        let separator = if cfg!(windows) { ";" } else { ":" };
+        let path = std::env::var_os("PATH").map(|value| value.to_string_lossy().into_owned());
+        let new_path = match path {
+            Some(existing) => format!("{}{}{}", node_dir.display(), separator, existing),
+            None => node_dir.display().to_string(),
+        };
+        std::env::set_var("PATH", new_path);
+    }
+
+    // Playwright 浏览器缓存与 Skill 根目录：存在才启用，已设置时不覆盖。
+    if std::env::var_os("PLAYWRIGHT_BROWSERS_PATH").is_none()
+        && exe_dir.join("playwright-browsers").exists()
+    {
+        std::env::set_var("PLAYWRIGHT_BROWSERS_PATH", exe_dir.join("playwright-browsers"));
+    }
+    if std::env::var_os("BOSS_JARVIS_SKILLS_ROOT").is_none() && exe_dir.join("skills").exists() {
+        std::env::set_var("BOSS_JARVIS_SKILLS_ROOT", exe_dir.join("skills"));
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    setup_portable_env();
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             data_dir,
@@ -378,7 +469,10 @@ pub fn run() {
             open_mail_reply,
             read_skill_env,
             write_skill_env,
-            llm_chat
+            llm_chat,
+            schedule_status,
+            manage_schedule,
+            set_dock_badge
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

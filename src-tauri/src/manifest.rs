@@ -103,41 +103,31 @@ pub fn load() -> Manifest {
 }
 
 /// 清单声明的脚本必须真实存在；缺失立即失败，避免取数/写操作静默变成"未找到执行脚本"。
+/// 只验证当前平台 + common 的脚本，跨平台编译时不检查对端脚本。
 fn validate_scripts_exist(manifest: &Manifest) {
     let root = manifest.skills_root();
     let mut missing: Vec<String> = Vec::new();
     for (id, entry) in &manifest.skills {
-        if let Some(fetch) = entry.fetch.as_ref().filter(|s| !s.is_empty()) {
-            if !root.join(fetch).is_file() {
-                missing.push(format!("{} fetch {}", id, fetch));
+        if entry.kind == SkillKind::Common {
+            if let Some(fetch) = entry.fetch.as_ref().filter(|s| !s.is_empty()) {
+                if !root.join(fetch).is_file() {
+                    missing.push(format!("{} fetch {}", id, fetch));
+                }
             }
-        }
-        for (action, script) in &entry.actions {
-            if !root.join(script).is_file() {
-                missing.push(format!("{} action {} {}", id, action, script));
+            for (action, script) in &entry.actions {
+                if !root.join(script).is_file() {
+                    missing.push(format!("{} action {} {}", id, action, script));
+                }
             }
-        }
-        if let Some(spec) = entry.macos.as_ref() {
+        } else if let Some(spec) = platform_spec(entry) {
             if let Some(fetch) = spec.fetch.as_ref().filter(|s| !s.is_empty()) {
                 if !root.join(fetch).is_file() {
-                    missing.push(format!("{} macos fetch {}", id, fetch));
+                    missing.push(format!("{} {} fetch {}", id, current_platform_label(), fetch));
                 }
             }
             for (action, script) in &spec.actions {
                 if !root.join(script).is_file() {
-                    missing.push(format!("{} macos action {} {}", id, action, script));
-                }
-            }
-        }
-        if let Some(spec) = entry.windows.as_ref() {
-            if let Some(fetch) = spec.fetch.as_ref().filter(|s| !s.is_empty()) {
-                if !root.join(fetch).is_file() {
-                    missing.push(format!("{} windows fetch {}", id, fetch));
-                }
-            }
-            for (action, script) in &spec.actions {
-                if !root.join(script).is_file() {
-                    missing.push(format!("{} windows action {} {}", id, action, script));
+                    missing.push(format!("{} {} action {} {}", id, current_platform_label(), action, script));
                 }
             }
         }
@@ -147,8 +137,28 @@ fn validate_scripts_exist(manifest: &Manifest) {
     }
 }
 
+#[cfg(target_os = "windows")]
+fn current_platform_label() -> &'static str { "windows" }
+#[cfg(not(target_os = "windows"))]
+fn current_platform_label() -> &'static str { "macos" }
+
 impl Manifest {
+    /// 解析 skills 根目录：环境变量 > exe 同级 skills/ > manifest 声明的 skillsRoot。
+    /// 便携包把 skills 放在 exe 旁边，无需用户配置。
     pub fn skills_root(&self) -> PathBuf {
+        if let Ok(dir) = std::env::var("BOSS_JARVIS_SKILLS_ROOT") {
+            if !dir.is_empty() {
+                return PathBuf::from(dir);
+            }
+        }
+        if let Ok(exe) = std::env::current_exe() {
+            if let Some(parent) = exe.parent() {
+                let sibling = parent.join("skills");
+                if sibling.is_dir() {
+                    return sibling;
+                }
+            }
+        }
         crate::paths::expand_tilde(&self.skills_root)
     }
 
@@ -185,20 +195,27 @@ impl Manifest {
     /// 解析当前平台的动作脚本；确认中心和直达操作共用同一入口。
     pub fn resolve_action(&self, id: &str, action: &str) -> Option<ResolvedAction> {
         let entry = self.skills.get(id)?;
-        let runner;
         let script;
         if entry.kind == SkillKind::Common {
-            runner = entry.runner.clone()?;
             script = entry.actions.get(action)?.clone();
         } else {
             let spec = platform_spec(entry)?;
-            runner = spec.runner.clone()?;
             script = spec.actions.get(action)?.clone();
         }
         if script.is_empty() {
             return None;
         }
+        let runner = runner_for_script(&script);
         Some(ResolvedAction { runner, script })
+    }
+}
+
+/// 同一平台里可能混用 node 与 powershell 脚本，按扩展名定 runner 更可靠。
+fn runner_for_script(script: &str) -> String {
+    if script.ends_with(".ps1") {
+        "powershell".to_string()
+    } else {
+        "node".to_string()
     }
 }
 
@@ -250,5 +267,24 @@ fn resolve_for_current_os(entry: &SkillEntry) -> Option<PlatformResolution> {
                 .clone()
                 .unwrap_or_else(|| "该平台实现待 Phase T 接入".to_string()),
         })),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Manifest, SkillKind, MANIFEST_JSON};
+
+    #[test]
+    fn mail_uses_one_common_skill_on_every_platform() {
+        let manifest: Manifest = serde_json::from_str(MANIFEST_JSON).expect("manifest should parse");
+        let mail = manifest
+            .skills
+            .get("changhong-mail")
+            .expect("changhong-mail should be declared");
+
+        assert_eq!(mail.kind, SkillKind::Common);
+        assert_eq!(mail.fetch.as_deref(), Some("changhong-mail/fetch-unread-mail.cjs"));
+        assert!(manifest.skills.get("windows-outlook-mail").is_none());
+        assert!(manifest.skills.get("company-mail").is_none());
     }
 }

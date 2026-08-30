@@ -1,12 +1,19 @@
-import { useEffect, useState } from "react";
-import { Eye, EyeOff, RotateCcw, Save } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Check, Clock, Download, Eye, EyeOff, RefreshCw, RotateCcw, Save, Trash2, X } from "lucide-react";
 import {
   AUTO_REFRESH_INTERVAL_OPTIONS,
   DEFAULT_BODY_FONT_SIZE,
   DEFAULT_TITLE_FONT_SIZE,
   type Theme,
 } from "@/lib/config";
-import { readSkillEnv, writeSkillEnv } from "@/lib/skillBridge";
+import {
+  manageSchedule,
+  readSkillEnv,
+  scheduleStatus,
+  writeSkillEnv,
+  type ScheduleAction,
+  type ScheduleStatus,
+} from "@/lib/skillBridge";
 
 interface Props {
   theme: Theme;
@@ -72,6 +79,12 @@ function FontRow({
   );
 }
 
+function scheduleConfirmLabel(action: ScheduleAction): string {
+  if (action === "install") return "安装并加载定时任务";
+  if (action === "reload") return "重载定时任务";
+  return "卸载定时任务";
+}
+
 export default function SettingsView({
   theme,
   onThemeChange,
@@ -89,6 +102,11 @@ export default function SettingsView({
   const [reveal, setReveal] = useState<Set<string>>(new Set());
   const [status, setStatus] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [schedule, setSchedule] = useState<ScheduleStatus | null>(null);
+  const [reminderTime, setReminderTime] = useState("17:00");
+  const [scheduleBusy, setScheduleBusy] = useState(false);
+  const [scheduleMessage, setScheduleMessage] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState<ScheduleAction | null>(null);
 
   useEffect(() => {
     void readSkillEnv().then((env) => {
@@ -117,6 +135,62 @@ export default function SettingsView({
       else next.add(key);
       return next;
     });
+  };
+
+  const loadSchedule = useCallback(async () => {
+    try {
+      const next = await scheduleStatus();
+      setSchedule(next);
+      if (typeof next.configuredTime === "string" && next.configuredTime !== "") {
+        setReminderTime(next.configuredTime);
+      }
+      setScheduleMessage(null);
+    } catch (error) {
+      setScheduleMessage("读取定时任务状态失败：" + String(error));
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadSchedule();
+  }, [loadSchedule]);
+
+  const runScheduleAction = useCallback(
+    async (action: ScheduleAction) => {
+      setScheduleBusy(true);
+      setScheduleMessage("正在执行…");
+      try {
+        const result = await manageSchedule(
+          action,
+          action === "set-time" ? reminderTime : undefined,
+        );
+        let summary: string;
+        if (action === "set-time") {
+          summary = result.note ?? "提醒时间已保存";
+        } else if (action === "uninstall") {
+          summary = "已卸载定时任务";
+        } else if (action === "install" || action === "reload") {
+          summary = result.loaded ? "定时任务已加载生效" : "定时任务已写入";
+        } else {
+          summary = "操作完成";
+        }
+        setScheduleMessage(summary);
+        await loadSchedule();
+      } catch (error) {
+        setScheduleMessage("操作失败：" + String(error));
+      } finally {
+        setScheduleBusy(false);
+        setConfirming(null);
+      }
+    },
+    [reminderTime, loadSchedule],
+  );
+
+  const requestAction = (action: ScheduleAction) => {
+    if (action === "set-time") {
+      void runScheduleAction(action);
+      return;
+    }
+    setConfirming(action);
   };
 
   return (
@@ -204,6 +278,114 @@ export default function SettingsView({
           <div className="jv-caption jv-muted jv-settings-note">
             所有 Skill 按此间隔自动获取真实数据。刷新时顶部状态栏会显示进度，完成后显示最近刷新时间和下次倒计时。
           </div>
+        </div>
+      </section>
+
+      <section className="jv-settings-section">
+        <div className="jv-title">定时巡检 / 提醒</div>
+        <div className="jv-settings-row">
+          <div className="jv-settings-row-head">
+            <Clock size={15} strokeWidth={2} className="jv-muted" />
+            <span className="jv-body jv-settings-label">提醒时间</span>
+            <span className="jv-caption jv-muted">工作日此刻推送</span>
+          </div>
+          <div className="jv-settings-schedule-actions">
+            <input
+              className="jv-settings-time-input"
+              type="time"
+              value={reminderTime}
+              aria-label="提醒时间"
+              onChange={(event) => setReminderTime(event.target.value)}
+            />
+            <button
+              type="button"
+              className="jv-settings-save-button"
+              disabled={scheduleBusy}
+              onClick={() => void runScheduleAction("set-time")}
+            >
+              <Save size={15} strokeWidth={2} />
+              保存时间
+            </button>
+          </div>
+          <div className="jv-caption jv-muted">
+            {schedule
+              ? "已配置 " + (schedule.configuredTime ?? "未获取") + " · 定时文件 " + (schedule.installed ? "已安装" : "未安装") + " · 系统任务 " + (schedule.loaded ? "已加载" : "未加载")
+              : "定时任务状态未获取"}
+          </div>
+        </div>
+
+        <div className="jv-settings-row">
+          <div className="jv-settings-row-head">
+            <span className="jv-body jv-settings-label">系统提醒任务</span>
+          </div>
+          <div className="jv-settings-schedule-actions">
+            <button
+              type="button"
+              className="jv-skill-toggle"
+              disabled={scheduleBusy}
+              onClick={() => requestAction("install")}
+            >
+              <Download size={15} strokeWidth={2} />
+              安装并加载
+            </button>
+            <button
+              type="button"
+              className="jv-skill-toggle"
+              disabled={scheduleBusy || schedule?.installed !== true}
+              onClick={() => requestAction("reload")}
+            >
+              <RefreshCw size={15} strokeWidth={2} />
+              重载生效
+            </button>
+            <button
+              type="button"
+              className="jv-oa-reject"
+              disabled={scheduleBusy || schedule?.installed !== true}
+              onClick={() => requestAction("uninstall")}
+            >
+              <Trash2 size={15} strokeWidth={2} />
+              卸载
+            </button>
+          </div>
+          {confirming !== null && (
+            <div className="jv-settings-confirm-bar">
+              <span className="jv-caption jv-level-attention">
+                {scheduleConfirmLabel(confirming)}，确认执行？
+              </span>
+              <button
+                type="button"
+                className="jv-confirm-primary"
+                disabled={scheduleBusy}
+                onClick={() => void runScheduleAction(confirming)}
+              >
+                <Check size={15} strokeWidth={2} />
+                确认执行
+              </button>
+              <button
+                type="button"
+                className="jv-confirm-plain"
+                onClick={() => setConfirming(null)}
+              >
+                <X size={15} strokeWidth={2} />
+                取消
+              </button>
+            </div>
+          )}
+          <div className="jv-caption jv-muted jv-settings-note">
+            定时巡检默认每日 17:00 自动运行（macOS launchd / Windows 任务计划程序），通过系统通知推送当日紧急优先事项；应用内提醒与 Dock 角标随晨报数据实时同步。
+          </div>
+          {scheduleMessage !== null && (
+            <span
+              className={
+                "jv-caption " +
+                (scheduleMessage.startsWith("操作失败") || scheduleMessage.startsWith("读取")
+                  ? "jv-level-attention"
+                  : "jv-level-normal")
+              }
+            >
+              {scheduleMessage}
+            </span>
+          )}
         </div>
       </section>
 

@@ -3,7 +3,7 @@ import { formatClock, formatDateTime } from "./datetime";
 
 export type CalendarLevel = "normal" | "attention" | "missing";
 
-export interface NativeCalendarEvent {
+export interface OaScheduleEvent {
   id: string;
   title: string;
   calendar: string;
@@ -12,9 +12,12 @@ export interface NativeCalendarEvent {
   isAllDay: boolean;
   priority: string;
   reasons: string[];
+  itemType: string;
+  place: string;
+  description: string;
 }
 
-export interface NativeCalendarReminder {
+export interface OaScheduleReminder {
   id: string;
   title: string;
   notes: string;
@@ -23,10 +26,10 @@ export interface NativeCalendarReminder {
   reasons: string[];
 }
 
-export interface NativeCalendarResult {
+export interface OaScheduleResult {
   date: string;
-  events: NativeCalendarEvent[];
-  reminders: NativeCalendarReminder[];
+  events: OaScheduleEvent[];
+  reminders: OaScheduleReminder[];
   summaryEventCount: number;
   summaryReminderCount: number;
   summaryHomepageItems: number;
@@ -71,7 +74,7 @@ export function timeRange(start: string, end: string): string {
   return `${s} - ${e}`;
 }
 
-export function parseNativeCalendar(envelope: SkillEnvelope): NativeCalendarResult {
+export function parseOaSchedule(envelope: SkillEnvelope): OaScheduleResult {
   const raw = envelope as unknown as Record<string, unknown>;
   const toRecord = (value: unknown): Record<string, unknown> => {
     if (typeof value === "object" && value !== null && !Array.isArray(value)) {
@@ -92,6 +95,9 @@ export function parseNativeCalendar(envelope: SkillEnvelope): NativeCalendarResu
     isAllDay: e.isAllDay === true,
     priority: str(e.priority, "green"),
     reasons: strList(e.reasons),
+    itemType: str(e.itemType, "未获取"),
+    place: str(e.place),
+    description: str(e.description),
   }));
   const reminders = (Array.isArray(raw.reminders) ? raw.reminders : []).map(toRecord).filter((r) => {
     const id = str(r.id);

@@ -70,6 +70,10 @@ export function approveTodo(input: {
   title: string;
   comment: string;
   approve: boolean;
+  targetRef?: unknown;
+  source?: string;
+  sender?: string;
+  time?: string;
 }): Promise<CommandOutcome> {
   return invoke<CommandOutcome>("approve_todo", input);
 }
@@ -86,7 +90,7 @@ export function uninstallSkill(skillId: string): Promise<CommandOutcome> {
   return invoke<CommandOutcome>("uninstall_skill", { skillId });
 }
 
-export function markMailRead(messageId: number): Promise<CommandOutcome> {
+export function markMailRead(messageId: number | string): Promise<CommandOutcome> {
   return invoke<CommandOutcome>("mark_mail_read", { messageId });
 }
 
@@ -119,4 +123,45 @@ export function llmChat(
   tools: unknown[],
 ): Promise<LlmChatOutcome> {
   return invoke<LlmChatOutcome>("llm_chat", { messages, tools });
+}
+
+export interface ScheduleStatus {
+  ok: boolean;
+  action: string;
+  label?: string;
+  plist?: string;
+  configFile?: string;
+  configuredTime?: string;
+  installed?: boolean;
+  loaded?: boolean;
+  diagnostics?: unknown;
+  [key: string]: unknown;
+}
+
+export interface ScheduleCommandResult {
+  ok: boolean;
+  action?: string;
+  time?: string;
+  note?: string;
+  loaded?: boolean;
+  removed?: boolean;
+  configFile?: string;
+  [key: string]: unknown;
+}
+
+export type ScheduleAction = "set-time" | "install" | "reload" | "uninstall";
+
+export function scheduleStatus(): Promise<ScheduleStatus> {
+  return invoke<ScheduleStatus>("schedule_status");
+}
+
+export function manageSchedule(
+  action: ScheduleAction,
+  time?: string,
+): Promise<ScheduleCommandResult> {
+  return invoke<ScheduleCommandResult>("manage_schedule", { action, time });
+}
+
+export function setDockBadge(count: number | null): Promise<void> {
+  return invoke<void>("set_dock_badge", { count });
 }

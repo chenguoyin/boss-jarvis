@@ -17,7 +17,7 @@ fn fetch_skill_manager_writes_contract_json() {
 fn fetch_boss_cockpit_aggregates_existing_contract_json() {
     // 驾驶舱聚合不应因单一上游缺失而整体失败；已有任一契约 JSON 即可产出。
     let data_dir = boss_jarvis_lib::data_dir_for_integration();
-    let has_source = ["oa-todo", "company-mail", "native-calendar", "spm-todo"]
+    let has_source = ["oa-todo", "changhong-mail", "oa-schedule", "spm-todo"]
         .iter()
         .any(|skill| data_dir.join(format!("{skill}.json")).is_file());
     if !has_source {

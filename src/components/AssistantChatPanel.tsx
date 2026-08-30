@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { Eraser, Search, SendHorizonal, Sparkles, X, Zap } from "lucide-react";
+import { Check, Copy, Eraser, Search, SendHorizonal, Sparkles, X, Zap } from "lucide-react";
+import Markdown from "react-markdown";
+import remarkBreaks from "remark-breaks";
+import remarkGfm from "remark-gfm";
 import { runAssistantTurn, type AssistantMessage, type AssistantRuntime } from "@/lib/assistantChat";
 
 interface Props {
@@ -14,18 +17,45 @@ const SUGGESTIONS = [
   "我今天有什么日程？",
 ];
 
+// execCommand 回退：Tauri WebView 里 navigator.clipboard 可能受限，走 textarea + execCommand 兜底。
+function copyWithFallback(text: string): boolean {
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.left = "-9999px";
+  document.body.appendChild(textarea);
+  textarea.select();
+  let ok = false;
+  try {
+    ok = document.execCommand("copy");
+  } catch {
+    ok = false;
+  }
+  document.body.removeChild(textarea);
+  return ok;
+}
+
 export default function AssistantChatPanel({ runtime, onClose }: Props) {
   const [messages, setMessages] = useState<AssistantMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [isBusy, setBusy] = useState(false);
+  const [copiedId, setCopiedId] = useState<number | null>(null);
   const historyRef = useRef<Record<string, unknown>[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   // 同步锁：state 更新是异步的，防同一事件循环内连点/双触发造成重复提交。
   const sendingRef = useRef(false);
+  const copyTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     inputRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current !== null) window.clearTimeout(copyTimeoutRef.current);
+    };
   }, []);
 
   useEffect(() => {
@@ -57,6 +87,24 @@ export default function AssistantChatPanel({ runtime, onClose }: Props) {
         sendingRef.current = false;
       });
     inputRef.current?.focus();
+  };
+
+  const copyMessage = async (id: number, text: string) => {
+    let ok = false;
+    if (navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(text);
+        ok = true;
+      } catch {
+        ok = false;
+      }
+    }
+    if (!ok) ok = copyWithFallback(text);
+    if (ok) {
+      setCopiedId(id);
+      if (copyTimeoutRef.current !== null) window.clearTimeout(copyTimeoutRef.current);
+      copyTimeoutRef.current = window.setTimeout(() => setCopiedId(null), 1500);
+    }
   };
 
   return (
@@ -109,15 +157,31 @@ export default function AssistantChatPanel({ runtime, onClose }: Props) {
                     <Zap size={13} strokeWidth={2} />
                     <span className="jv-caption">{message.text}</span>
                   </div>
-                ) : (
-                  <div
-                    key={message.id}
-                    className={
-                      "jv-assistant-message " +
-                      (message.role === "user" ? "jv-assistant-message-user" : "jv-assistant-message-bot")
-                    }
-                  >
+                ) : message.role === "user" ? (
+                  <div key={message.id} className="jv-assistant-message jv-assistant-message-user">
                     <span className="jv-body">{message.text}</span>
+                    <button
+                      type="button"
+                      className="jv-assistant-copy"
+                      title="复制"
+                      onClick={() => void copyMessage(message.id, message.text)}
+                    >
+                      {copiedId === message.id ? <Check size={13} strokeWidth={2} /> : <Copy size={13} strokeWidth={2} />}
+                    </button>
+                  </div>
+                ) : (
+                  <div key={message.id} className="jv-assistant-message jv-assistant-message-bot">
+                    <div className="jv-assistant-markdown jv-body">
+                      <Markdown remarkPlugins={[remarkGfm, remarkBreaks]}>{message.text}</Markdown>
+                    </div>
+                    <button
+                      type="button"
+                      className="jv-assistant-copy"
+                      title="复制"
+                      onClick={() => void copyMessage(message.id, message.text)}
+                    >
+                      {copiedId === message.id ? <Check size={13} strokeWidth={2} /> : <Copy size={13} strokeWidth={2} />}
+                    </button>
                   </div>
                 ),
               )}

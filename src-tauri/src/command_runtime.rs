@@ -74,21 +74,78 @@ pub fn write_skill_env(values: &std::collections::HashMap<String, String>) -> Co
 fn run_skill_action(skill: &str, action: &str, args: &[String]) -> (bool, String, String, String) {
     let manifest = crate::manifest::load();
     let Some(resolved) = manifest.resolve_action(skill, action) else {
-        return (false, String::new(), String::new(), "未找到执行脚本".to_string());
+        let error = format!("未找到执行脚本：skill={skill} action={action}");
+        log_action(skill, action, args, false, 0, &error, "unresolved-action", "", "");
+        return (false, String::new(), String::new(), error);
     };
     let path = manifest.skills_root().join(&resolved.script);
     if !path.is_file() {
-        return (false, String::new(), String::new(), "未找到执行脚本".to_string());
+        let error = format!("未找到执行脚本：{}", path.display());
+        log_action(skill, action, args, false, 0, &error, "script-missing", "", "");
+        return (false, String::new(), String::new(), error);
     }
-    let result = crate::skill_runtime::run_with_timeout(&resolved.runner, &path, args, COMMAND_TIMEOUT_SECS);
+    let started = std::time::Instant::now();
+    let result = crate::skill_runtime::run_with_timeout(&resolved.runner, &path, args, COMMAND_TIMEOUT_SECS, None);
+    let duration_ms = started.elapsed().as_millis() as u64;
     let error = if result.ok {
         String::new()
-    } else if !result.stderr.is_empty() {
-        result.stderr.clone()
     } else {
-        result.error.clone()
+        extract_script_error(&result.stderr, &result.error)
     };
+    log_action(skill, action, args, result.ok, duration_ms, &error, &result.error, &result.stdout, &result.stderr);
     (result.ok, result.stdout, result.stderr, error)
+}
+
+/// 写命令执行日志：落到 ~/.boss-jarvis/logs/actions.log，JSON Lines。
+/// stdout/stderr 各截断保留 4000 字符，覆盖审批脚本全部 ERROR 明细与步骤输出。
+fn log_action(
+    skill: &str,
+    action: &str,
+    args: &[String],
+    ok: bool,
+    duration_ms: u64,
+    error: &str,
+    run_error: &str,
+    stdout: &str,
+    stderr: &str,
+) {
+    use crate::runtime_log::truncate_head;
+    let entry = serde_json::json!({
+        "time": crate::runtime_log::iso_now(),
+        "skill": skill,
+        "action": action,
+        "ok": ok,
+        "durationMs": duration_ms,
+        "error": truncate_head(error, 800),
+        "runError": run_error,
+        "args": args,
+        "stdout": truncate_head(stdout, 4000),
+        "stderr": truncate_head(stderr, 4000),
+    });
+    crate::runtime_log::append_log_line("actions.log", &(entry.to_string() + "\n"));
+}
+
+/// 脚本把真正的失败原因写成 "ERROR: <原因>"（见 oa-todo/spm-todo approve 脚本）；
+/// 其次有的脚本把 { "error": "..." } JSON 直接打到 stderr（如 skill-manager）；
+/// 超时等运行层错误直接用运行层信息；
+/// 其余非零退出取 stderr 尾部，避免界面只剩 "exit 1"。
+fn extract_script_error(stderr: &str, fallback: &str) -> String {
+    if let Some(line) = stderr.lines().rev().find(|line| line.trim_start().starts_with("ERROR:")) {
+        return line.trim().trim_start_matches("ERROR:").trim().to_string();
+    }
+    if let Ok(value) = serde_json::from_str::<serde_json::Value>(stderr.trim()) {
+        if let Some(message) = value.get("error").and_then(|v| v.as_str()).map(str::trim).filter(|m| !m.is_empty()) {
+            return message.to_string();
+        }
+    }
+    let tail = stderr.trim();
+    if tail.is_empty() {
+        return fallback.to_string();
+    }
+    if fallback.is_empty() || fallback.starts_with("exit ") {
+        return tail.to_string();
+    }
+    fallback.to_string()
 }
 
 fn json_field(stdout: &str, key: &str) -> Option<serde_json::Value> {
@@ -150,38 +207,78 @@ fn audit_payload(
 }
 
 /// OA/SPM 审批：详情弹层点击即是确认，直接真实执行并写审计。
-pub fn approve_todo(skill: &str, title: &str, comment: &str, approve: bool) -> CommandOutcome {
+pub fn approve_todo(
+    skill: &str,
+    title: &str,
+    comment: &str,
+    approve: bool,
+    target_ref: Option<serde_json::Value>,
+    source: Option<&str>,
+    sender: Option<&str>,
+    time: Option<&str>,
+) -> CommandOutcome {
     if title.is_empty() {
         return failure(skill, "待办标题未获取，无法执行审批。");
     }
     let verb = if approve { "同意" } else { "不同意" };
     let action = if approve { "approve" } else { "reject" };
     let target_skill = if skill == "spm-todo" { "spm-todo" } else { "oa-todo" };
+    let mut target = serde_json::Map::new();
+    target.insert("title".to_string(), serde_json::json!(title));
+    if let Some(value) = target_ref {
+        if let Some(object) = value.as_object() {
+            for (key, value) in object {
+                target.insert(key.clone(), value.clone());
+            }
+        }
+    }
+    if let Some(value) = source.filter(|value| !value.trim().is_empty()) {
+        target.insert("source".to_string(), serde_json::json!(value));
+    }
+    if let Some(value) = sender.filter(|value| !value.trim().is_empty()) {
+        target.insert("sender".to_string(), serde_json::json!(value));
+    }
+    if let Some(value) = time.filter(|value| !value.trim().is_empty()) {
+        target.insert("time".to_string(), serde_json::json!(value));
+    }
+    let target_json = serde_json::Value::Object(target).to_string();
     let args = vec![
         title.to_string(),
         comment.to_string(),
         action.to_string(),
+        format!("--target-json={target_json}"),
         "--confirmed".to_string(),
     ];
     let (_ok, stdout, _stderr, error) = run_skill_action(target_skill, "approve", &args);
-    let approved = json_field(&stdout, "approved").and_then(|v| v.as_bool()) == Some(true);
+    // 脚本契约：reject 成功时 approved 恒为 false，processed 才是"已流转"的判定；
+    // 早期只看 approved 会把成功的"不同意"误报为失败。
+    let processed = json_field(&stdout, "processed").and_then(|v| v.as_bool()) == Some(true);
     let verified = json_field(&stdout, "verified").and_then(|v| v.as_bool()) == Some(true);
     let page_type = json_string(&stdout, "pageType").unwrap_or_else(|| "未获取".to_string());
-    let status = if approved && verified {
-        "success"
-    } else if approved {
-        "success"
+    let verification_hint = json_string(&stdout, "verificationHint").unwrap_or_default();
+    let submit_button = json_string(&stdout, "submitButton").unwrap_or_default();
+    let outcome_ok = processed;
+    let status = if outcome_ok { "success" } else { "failed" };
+    let summary = if outcome_ok {
+        let mut text = format!("审批已执行：{verb} · {page_type}");
+        if !submit_button.is_empty() {
+            text += &format!("（{submit_button}）");
+        }
+        if !verified {
+            text += "；页面验证未完成，请重新获取待办确认状态";
+        }
+        text
+    } else if !error.is_empty() {
+        // 明细已在 actions.log；界面只给截断后的原因和日志位置，避免长堆栈撑破状态行。
+        format!(
+            "审批执行失败：{}（完整日志见 ~/.boss-jarvis/logs/actions.log）",
+            crate::runtime_log::truncate_head(&error, 260)
+        )
+    } else if !verification_hint.is_empty() {
+        format!("审批未完成：{verification_hint}")
     } else {
-        "failed"
+        format!("审批未完成：脚本未确认流转结果（{page_type}）")
     };
-    let summary = if approved && verified {
-        format!("审批已提交并验证：{verb} · {page_type}")
-    } else if approved {
-        format!("审批已提交，验证未完成：{page_type}")
-    } else {
-        format!("审批执行失败：{}", if error.is_empty() { page_type.clone() } else { error.clone() })
-    };
-    let outcome_ok = approved;
     record_audit(audit_payload(
         skill,
         "execute",
@@ -283,12 +380,12 @@ pub fn uninstall_skill(skill_id: &str) -> CommandOutcome {
 }
 
 /// 邮件标记已读：只操作该封邮件，不发送任何内容。
-pub fn mark_mail_read(message_id: i64) -> CommandOutcome {
-    if message_id <= 0 {
-        return failure("company-mail", "邮件标识未获取，无法标记已读。");
+pub fn mark_mail_read(message_id: String) -> CommandOutcome {
+    if message_id.trim().is_empty() {
+        return failure(MAIL_SKILL_ID, "邮件标识未获取，无法标记已读。");
     }
     let (_ok, stdout, _stderr, error) = run_skill_action(
-        "company-mail",
+        MAIL_SKILL_ID,
         "mark-read",
         &[format!("--message-id={message_id}"), "--confirmed".to_string()],
     );
@@ -299,7 +396,7 @@ pub fn mark_mail_read(message_id: i64) -> CommandOutcome {
         format!("标记已读失败：{}", if error.is_empty() { "邮件客户端未响应".to_string() } else { error.clone() })
     };
     record_audit(audit_payload(
-        "company-mail",
+        MAIL_SKILL_ID,
         "mark_read",
         "write_pending",
         if marked { "success" } else { "failed" },
@@ -310,6 +407,9 @@ pub fn mark_mail_read(message_id: i64) -> CommandOutcome {
     CommandOutcome { ok: marked, summary }
 }
 
+/// 邮件 Skill 标识：统一走 changhong-mail，不区分平台。
+const MAIL_SKILL_ID: &str = "changhong-mail";
+
 fn mail_argument(value: &str, flag: &str) -> String {
     format!("--{flag}={value}")
 }
@@ -317,7 +417,7 @@ fn mail_argument(value: &str, flag: &str) -> String {
 /// 邮件回复：生成草稿、加工签名后打开回复窗口；发送动作永远留在客户端由用户完成。
 pub fn open_mail_reply(to: &str, subject: &str, body_summary: &str, reply_basis: &str, sender: &str) -> CommandOutcome {
     if to.is_empty() || subject.is_empty() {
-        return failure("company-mail", "收件人或主题未获取，无法打开回复窗口。");
+        return failure(MAIL_SKILL_ID, "收件人或主题未获取，无法打开回复窗口。");
     }
     let draft_args = vec![
         mail_argument(subject, "subject"),
@@ -326,17 +426,17 @@ pub fn open_mail_reply(to: &str, subject: &str, body_summary: &str, reply_basis:
         mail_argument(sender, "sender"),
     ];
     let (draft_ok, draft_stdout, _draft_stderr, draft_error) =
-        run_skill_action("company-mail", "generate-reply", &draft_args);
+        run_skill_action(MAIL_SKILL_ID, "generate-reply", &draft_args);
     let Some(draft_body) = json_string(&draft_stdout, "draftBody")
         .filter(|body| !body.is_empty())
     else {
         let summary = if draft_ok {
-            "回复草稿生成失败：company-mail 输出无法解析".to_string()
+            "回复草稿生成失败：邮件 Skill 输出无法解析".to_string()
         } else {
             format!("回复草稿生成失败：{draft_error}")
         };
         record_audit(audit_payload(
-            "company-mail",
+            MAIL_SKILL_ID,
             "draft_reply",
             "draft_only",
             "failed",
@@ -353,14 +453,14 @@ pub fn open_mail_reply(to: &str, subject: &str, body_summary: &str, reply_basis:
         mail_argument(&draft_body, "body"),
     ];
     let (prepare_ok, prepare_stdout, _prepare_stderr, prepare_error) =
-        run_skill_action("company-mail", "prepare-reply", &prepare_args);
+        run_skill_action(MAIL_SKILL_ID, "prepare-reply", &prepare_args);
     let full_to = json_string(&prepare_stdout, "to").unwrap_or_else(|| to.to_string());
     let full_subject = json_string(&prepare_stdout, "subject").unwrap_or_else(|| subject.to_string());
     let full_body = json_string(&prepare_stdout, "body").unwrap_or(draft_body);
     if !prepare_ok {
-        let summary = format!("回复草稿加工失败：{}", if prepare_error.is_empty() { "company-mail 输出无法解析".to_string() } else { prepare_error.clone() });
+        let summary = format!("回复草稿加工失败：{}", if prepare_error.is_empty() { "邮件 Skill 输出无法解析".to_string() } else { prepare_error.clone() });
         record_audit(audit_payload(
-            "company-mail",
+            MAIL_SKILL_ID,
             "draft_reply",
             "draft_only",
             "failed",
@@ -378,7 +478,7 @@ pub fn open_mail_reply(to: &str, subject: &str, body_summary: &str, reply_basis:
         "--confirmed".to_string(),
     ];
     let (_open_ok, open_stdout, _open_stderr, open_error) =
-        run_skill_action("company-mail", "open-reply", &open_args);
+        run_skill_action(MAIL_SKILL_ID, "open-reply", &open_args);
     let opened = json_field(&open_stdout, "opened").and_then(|v| v.as_bool()) == Some(true);
     let summary = if opened {
         "回复窗口已在邮件客户端打开，请核对后点击发送。".to_string()
@@ -386,7 +486,7 @@ pub fn open_mail_reply(to: &str, subject: &str, body_summary: &str, reply_basis:
         format!("打开回复窗口失败：{}", if open_error.is_empty() { "邮件客户端未响应".to_string() } else { open_error.clone() })
     };
     record_audit(audit_payload(
-        "company-mail",
+        MAIL_SKILL_ID,
         "draft_reply",
         "draft_only",
         if opened { "success" } else { "failed" },
@@ -397,9 +497,113 @@ pub fn open_mail_reply(to: &str, subject: &str, body_summary: &str, reply_basis:
     CommandOutcome { ok: opened, summary }
 }
 
+/// 定时巡检状态：只读，直接透传 manage-schedule.cjs status 的结构化结果。
+pub fn schedule_status() -> Result<serde_json::Value, String> {
+    let (ok, stdout, _stderr, error) =
+        run_skill_action("daily-briefing", "schedule", &["status".to_string()]);
+    if !ok {
+        return Err(if error.is_empty() { "无法读取定时任务状态".to_string() } else { error });
+    }
+    parse_schedule_json(&stdout, "status")
+}
+
+/// 定时任务写操作：设置提醒时间或安装/重载/卸载 launchd 任务，调用前已由 UI 确认。
+pub fn manage_schedule(action: &str, time: Option<&str>) -> Result<serde_json::Value, String> {
+    let mut args = vec![action.to_string()];
+    match action {
+        "set-time" => {
+            let time = time
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .ok_or_else(|| "缺少提醒时间".to_string())?;
+            if !is_clock_time(time) {
+                return Err(format!("提醒时间格式应为 HH:MM：{time}"));
+            }
+            args.push("--time".to_string());
+            args.push(time.to_string());
+        }
+        "install" => args.push("--load".to_string()),
+        "uninstall" => args.push("--unload".to_string()),
+        "reload" | "status" => {}
+        _ => return Err("未知的定时任务操作".to_string()),
+    }
+    let (ok, stdout, _stderr, error) = run_skill_action("daily-briefing", "schedule", &args);
+    if !ok {
+        return Err(if error.is_empty() { "定时任务操作失败".to_string() } else { error });
+    }
+    let parsed = parse_schedule_json(&stdout, action)?;
+    if action != "status" {
+        record_audit(audit_payload(
+            "daily-briefing",
+            "execute",
+            "write_pending",
+            "success",
+            &format!("schedule:{action}"),
+            "定时巡检配置已更新",
+            "",
+        ));
+    }
+    Ok(parsed)
+}
+
+fn is_clock_time(value: &str) -> bool {
+    let Some((hour, minute)) = value.split_once(':') else {
+        return false;
+    };
+    if hour.is_empty()
+        || minute.len() != 2
+        || !hour.bytes().all(|byte| byte.is_ascii_digit())
+        || !minute.bytes().all(|byte| byte.is_ascii_digit())
+    {
+        return false;
+    }
+    let hour = hour.parse::<u32>().unwrap_or(99);
+    let minute = minute.parse::<u32>().unwrap_or(99);
+    hour <= 23 && minute <= 59
+}
+
+fn parse_schedule_json(stdout: &str, action: &str) -> Result<serde_json::Value, String> {
+    serde_json::from_str::<serde_json::Value>(stdout)
+        .map_err(|error| format!("定时任务输出无法解析（{action}）：{error}"))
+}
+
 fn failure(_skill: &str, message: &str) -> CommandOutcome {
     CommandOutcome {
         ok: false,
         summary: message.to_string(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::extract_script_error;
+
+    #[test]
+    fn prefers_last_error_line_from_stderr() {
+        // 审批脚本：步骤输出在前，失败原因以 "ERROR:" 落最后一行。
+        let stderr = "🔄 打开 OA 首页\n🔄 启动浏览器\nERROR: OA首页待办表格加载超时\n    at main (...approve-todo.cjs:648:1)";
+        assert_eq!(extract_script_error(stderr, "exit 1"), "OA首页待办表格加载超时");
+    }
+
+    #[test]
+    fn falls_back_to_stderr_tail_when_no_error_marker() {
+        let stderr = "playwright: browser exited unexpectedly\n";
+        assert_eq!(
+            extract_script_error(stderr, "exit 1"),
+            "playwright: browser exited unexpectedly"
+        );
+    }
+
+    #[test]
+    fn timeout_message_wins_over_empty_stderr() {
+        let fallback = "脚本执行超时（150 秒），已终止";
+        assert_eq!(extract_script_error("", fallback), fallback);
+    }
+
+    #[test]
+    fn parses_json_error_envelope_from_stderr() {
+        // skill-manager 等脚本失败时把 { "error": "..." } 整段打到 stderr。
+        let stderr = "{\n  \"ok\": false,\n  \"error\": \"Skill 不存在：__x__\"\n}";
+        assert_eq!(extract_script_error(stderr, "exit 1"), "Skill 不存在：__x__");
     }
 }

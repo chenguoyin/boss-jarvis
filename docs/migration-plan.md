@@ -85,6 +85,9 @@ macOS 与 Windows 共用同一套前端、Rust 核心与设计系统；平台差
   `approve_todo`（OA/SPM 审批直达执行）、`toggle_skill`（启停）、
   `mark_mail_read`（单封已读）、`open_mail_reply`（三段式生成草稿→加工→打开
   回复窗口，绝不代发）；全部经 audit-log Skill 写留痕。
+  执行明细（skill/action/耗时/退出信息/完整 stdout/stderr）按 JSON Lines 落
+  `~/.boss-jarvis/logs/actions.log`（2MB 轮转一代），审批失败时按脚本
+  `ERROR:` 行 / stderr JSON 提取可定位原因，界面只给截断摘要与日志位置。
 - [x] manifest 动作注册：`skills/manifest.json` 为 skill-manager/audit-log 补
   actions 映射；`manifest.rs` 按 common/platform 解析当前平台的动作脚本。
 - [x] OA 审批弹层：`OATodoView.tsx` 详情内审批意见 + 同意/不同意，点击即真实
