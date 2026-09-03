@@ -145,14 +145,11 @@ fn load_oa_snapshot() -> Option<Value> {
     }
 }
 
-fn save_oa_snapshot(window: &WebviewWindow) {
-    let Ok(value) = eval_json(window, SNAPSHOT_READ_JS) else {
-        return;
-    };
-    if value.get("__error").is_some() {
-        return;
-    }
-    let mut payload = value;
+/// 把 SNAPSHOT_READ_JS 采集到的 token 快照落盘（0600）；供窗口版与内嵌版共用。
+/// 内嵌版（hongyi_embed）只消费其中的 sd-ssoToken（公共凭证直连换票）；窗口版还会在文档
+/// 启动时整份注入以跳过 OA 登录页。失败静默（快照只是优化，不影响主流程）。
+pub(crate) fn persist_oa_snapshot(payload: Value) {
+    let mut payload = payload;
     if payload.get("localStorage").and_then(Value::as_object).is_none()
         || payload.get("sessionStorage").and_then(Value::as_object).is_none()
     {
@@ -174,6 +171,16 @@ fn save_oa_snapshot(window: &WebviewWindow) {
         #[cfg(target_os = "windows")]
         let _ = std::fs::write(&snapshot_path(), text);
     }
+}
+
+fn save_oa_snapshot(window: &WebviewWindow) {
+    let Ok(value) = eval_json(window, SNAPSHOT_READ_JS) else {
+        return;
+    };
+    if value.get("__error").is_some() {
+        return;
+    }
+    persist_oa_snapshot(value);
 }
 
 /// 供 ensure_window 使用：把磁盘快照包成文档启动注入脚本（无快照时注入空对象，静默无副作用）。
