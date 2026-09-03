@@ -112,6 +112,49 @@ export function writeSkillEnv(values: Record<string, string>): Promise<CommandOu
   return invoke<CommandOutcome>("write_skill_env", { values });
 }
 
+export function readMailSignature(): Promise<string> {
+  return invoke<string>("read_mail_signature");
+}
+
+export function writeMailSignature(value: string): Promise<CommandOutcome> {
+  return invoke<CommandOutcome>("write_mail_signature", { value });
+}
+
+/** 打开虹翼数智「部门看板」：Rust 侧新建/复用专用 WebView 窗口并自动完成 OA 单点（见 docs/hongyi-dashboard-in-app.md）。 */
+export function openHongyiDashboard(): Promise<string> {
+  return invoke<string>("open_hongyi_dashboard");
+}
+
+/** 在 App 内容区内显示配置的虹翼 URL 页面（面板窗口自跑 OA 单点后整页直达；URL 由 HONGYI_EXTERNAL_URL 配置，默认部门看板）。 */
+export function openHongyiInApp(): Promise<string> {
+  return invoke<string>("open_hongyi_in_app");
+}
+
+/** 打开前上报「虹翼外链」分区内容区占位左上角（CSS 逻辑 px），面板窗口据此与其它分区内容对齐。 */
+export function setHongyiSlot(left: number, top: number): Promise<void> {
+  return invoke<void>("hongyi_embed_set_slot", { left, top });
+}
+
+/** 地址栏跳转：内嵌页直达同源目标（会话有效则直接导航，会话失效自动补跑 OA 单点后直达）。 */
+export function hongyiEmbedNavigate(target: string): Promise<string> {
+  return invoke<string>("hongyi_embed_navigate", { target });
+}
+
+/** 内嵌页当前实际 URL（地址栏同步用；无内嵌页返回 null）。 */
+export function hongyiEmbedCurrentUrl(): Promise<string | null> {
+  return invoke<string | null>("hongyi_embed_current_url");
+}
+
+/** 刷新内嵌页。 */
+export function hongyiEmbedReload(): Promise<void> {
+  return invoke<void>("hongyi_embed_reload");
+}
+
+/** 关闭 App 主窗口内嵌的虹翼页面（切换分区时由前端调用）。 */
+export function closeHongyiEmbed(): Promise<void> {
+  return invoke<void>("close_hongyi_embed");
+}
+
 export interface LlmChatOutcome {
   ok: boolean;
   error: string;
@@ -164,4 +207,8 @@ export function manageSchedule(
 
 export function setDockBadge(count: number | null): Promise<void> {
   return invoke<void>("set_dock_badge", { count });
+}
+
+export function openHongyiWithAuth(): Promise<void> {
+  return invoke<void>("open_hongyi_with_auth");
 }

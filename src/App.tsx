@@ -5,6 +5,7 @@ import PlaceholderView from "./components/PlaceholderView";
 import SkillDataView from "./components/SkillDataView";
 import ConfirmationCenterView from "./components/ConfirmationCenterView";
 import SettingsView from "./components/SettingsView";
+import HongyiBusinessView from "./components/HongyiBusinessView";
 import AssistantChatPanel from "./components/AssistantChatPanel";
 import { parseCompanyMail } from "./lib/mail";
 import { parseDailyBriefing } from "./lib/dailyBriefing";
@@ -15,10 +16,13 @@ import { appSections, confirmationSection, sectionById, settingsSection } from "
 import { useSkillData } from "./hooks/useSkillData";
 import {
   approveTodo,
+  closeHongyiEmbed,
   listAuditLogDates,
   listWeeklySummaryDates,
   installSkill,
   markMailRead,
+  openHongyiInApp,
+  setHongyiSlot,
   openMailReply,
   readAuditLog,
   readDailyBriefingReport,
@@ -31,6 +35,7 @@ import {
   uninstallSkill,
 } from "./lib/skillBridge";
 import { parseOATodo } from "./lib/oaTodo";
+import { buildHongyiSnapshot } from "./lib/hongyiBusiness";
 import type { AssistantRuntime } from "./lib/assistantChat";
 import {
   createSkillInstallAction,
@@ -71,6 +76,108 @@ export default function App() {
   const appStartedAtRef = useRef(Date.now());
   const [theme, setThemeState] = useState<Theme>(loadTheme);
   const section = sectionById(sectionId);
+
+  // 虹翼外链：点击侧栏该分区即在 App 内容区原位显示「配置的虹翼 URL」页面本身（无边框面板窗口
+  // 贴内容区，自跑 OA 单点后整页直达，不转成其它视图；见 src-tauri/src/hongyi_embed.rs 与
+  // docs/hongyi-dashboard-in-app.md）。URL 走系统配置 HONGYI_EXTERNAL_URL，默认部门看板，后续可改。
+  const [hongyiOpening, setHongyiOpening] = useState(false);
+  const [hongyiFailed, setHongyiFailed] = useState(false);
+  const [hongyiEmbedActive, setHongyiEmbedActive] = useState(false);
+  const [hongyiMessage, setHongyiMessage] = useState("");
+  const hongyiOpeningRef = useRef(false);
+  // 打开（单点驱动）期间用户请求过关闭：流程结束后不显示内嵌页，改为隐藏。
+  const hongyiCloseRequestedRef = useRef(false);
+  // 「虹翼外链」分区内容区占位（header 之下），Rust 面板窗口按其左上角对齐贴位。
+  const hongyiSlotRef = useRef<HTMLDivElement | null>(null);
+
+  const handleCloseHongyiEmbed = useCallback(async () => {
+    setHongyiEmbedActive(false);
+    setHongyiMessage("");
+    if (hongyiOpeningRef.current) {
+      // 单点驱动进行中：不在 Rust 侧并发 hide；记下“待关闭”，打开流程结束后自动隐藏。
+      hongyiCloseRequestedRef.current = true;
+      return;
+    }
+    try {
+      await closeHongyiEmbed();
+    } catch {
+      // 未创建过内嵌页时关闭无副作用，忽略错误。
+    }
+  }, []);
+
+  const handleOpenHongyiEmbed = useCallback(async () => {
+    if (hongyiOpeningRef.current) return;
+    hongyiOpeningRef.current = true;
+    hongyiCloseRequestedRef.current = false;
+    setHongyiOpening(true);
+    setHongyiFailed(false);
+    setHongyiMessage("正在 App 内打开虹翼页面（OA 单点自动登录）…");
+    try {
+      // 等两帧：确保「打开中」状态渲染完成（列表态的经营卡片已隐藏，slot 紧贴标题行），
+      // 否则会量到卡片下方的 y（曾出现 top=199 而预期 ~102，标题与网页间大片空白）。
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      });
+      // 把内容区占位左上角上报 Rust：child WebView 据此与标题行对齐贴位。
+      const slot = hongyiSlotRef.current;
+      if (slot) {
+        const rect = slot.getBoundingClientRect();
+        await setHongyiSlot(rect.left, rect.top).catch(() => {});
+      }
+      const summary = await openHongyiInApp();
+      if (
+        hongyiCloseRequestedRef.current ||
+        sectionIdRef.current !== "hongyi-external"
+      ) {
+        // 打开期间用户已关闭请求 / 已切到其它分区：隐藏内嵌页，避免悬浮遮挡其它分区内容。
+        setHongyiMessage("");
+        void closeHongyiEmbed().catch(() => {});
+      } else {
+        setHongyiMessage(summary);
+        setHongyiEmbedActive(true);
+      }
+    } catch (error) {
+      if (!hongyiCloseRequestedRef.current) {
+        setHongyiFailed(true);
+        setHongyiMessage(`打开失败：${String(error)}`);
+      } else {
+        setHongyiMessage("");
+        void closeHongyiEmbed().catch(() => {});
+      }
+    } finally {
+      hongyiOpeningRef.current = false;
+      setHongyiOpening(false);
+    }
+  }, []);
+
+  // 进入「虹翼外链」分区（从其它分区切换过来）自动打开；离开该分区即隐藏虹翼窗口
+  // （页面与会话保留，再次进入直接复用，不再重跑单点加载）。
+  const prevSectionRef = useRef(sectionId);
+  const sectionIdRef = useRef(sectionId);
+  useEffect(() => {
+    const previous = prevSectionRef.current;
+    prevSectionRef.current = sectionId;
+    sectionIdRef.current = sectionId;
+    if (sectionId === "hongyi-external" && previous !== "hongyi-external") {
+      void handleOpenHongyiEmbed();
+    } else if (previous === "hongyi-external" && sectionId !== "hongyi-external") {
+      void handleCloseHongyiEmbed();
+    }
+  }, [sectionId, handleOpenHongyiEmbed, handleCloseHongyiEmbed]);
+
+  // Handle section selection, including special handling for external links
+  const handleSectionSelect = useCallback(
+    (id: string) => {
+      if (id === "hongyi-external" && id === sectionId && hongyiEmbedActive) {
+        // 已在「虹翼外链」且内嵌页显示中：同分区再次点击不重复 hide/show
+        // （避免高频交替触发平台异常，2026-09-02 反馈「第 2 次点直接闪退」）；
+        // 退出请用分区头「×」/ 顶栏「返回」/ 切到其它分区。
+        return;
+      }
+      setSectionId(id);
+    },
+    [sectionId, hongyiEmbedActive],
+  );
   const sectionSkills = useMemo(() => section?.skills ?? [], [section]);
   const fetchableSkills = useMemo(
     () => Array.from(new Set(appSections.flatMap((entry) => entry.skills))),
@@ -84,7 +191,10 @@ export default function App() {
     statuses: skillStatuses,
     refresh,
     refreshAll,
+    cancelRefresh,
   } = useSkillData(sectionSkills, fetchableSkills);
+  // 跟踪各分区的刷新状态，用于页面级别刷新按钮的独立控制
+  const [sectionRefreshStatus, setSectionRefreshStatus] = useState<Record<string, boolean>>({});
   const [briefingEnvelope, setBriefingEnvelope] = useState<SkillEnvelope | null>(null);
   const [briefingNotice, setBriefingNotice] = useState<{ count: number; items: string[] } | null>(null);
   const briefingNoticeSignatureRef = useRef("");
@@ -191,11 +301,15 @@ export default function App() {
   }, []);
 
   const handleRefresh = useCallback(async () => {
-    if (isReloading) return;
+    // 如果正在刷新，点击则取消获取
+    if (isReloading) {
+      cancelRefresh();
+      return;
+    }
     await refreshAll();
     setReloadCount((count) => count + 1);
     setLastRefreshedAt(Date.now());
-  }, [refreshAll, isReloading]);
+  }, [refreshAll, cancelRefresh, isReloading]);
 
   const handleRefreshRef = useRef(handleRefresh);
   useEffect(() => {
@@ -252,6 +366,16 @@ export default function App() {
   const mailEnvelope = envelopes["changhong-mail"] ?? null;
   const oaTodoResult = useMemo(() => parseOATodo(oaEnvelope), [oaEnvelope]);
   const mailResult = useMemo(() => parseCompanyMail(mailEnvelope), [mailEnvelope]);
+  // 「虹翼外链」分区未激活（失败/关闭）时展示的经营数据卡：与侧栏「经营情况」一致，
+  // 使用 hongyi-business-overview / hongyi-today-metrics 的 Skill 落盘数据按原方式渲染。
+  const hongyiSnapshot = useMemo(
+    () =>
+      buildHongyiSnapshot(
+        envelopes["hongyi-today-metrics"] ?? null,
+        envelopes["hongyi-business-overview"] ?? null,
+      ),
+    [envelopes],
+  );
   const badgeFor = useCallback((id: string) => {
     if (id === "oa-todo") return oaTodoResult?.total;
     if (id === "mail") return mailResult?.needsReplyCount;
@@ -279,11 +403,21 @@ export default function App() {
       setReloadCount((count) => count + 1);
       return;
     }
-    if (isReloading || sectionSkills.length === 0) return;
+    // 检查当前分区是否正在刷新
+    if (sectionRefreshStatus[sectionId]) {
+      // 如果正在刷新，点击则取消该分区的刷新
+      cancelRefresh();
+      setSectionRefreshStatus((prev) => ({ ...prev, [sectionId]: false }));
+      return;
+    }
+    if (sectionSkills.length === 0) return;
+    // 标记当前分区正在刷新
+    setSectionRefreshStatus((prev) => ({ ...prev, [sectionId]: true }));
     await refresh(sectionSkills);
+    setSectionRefreshStatus((prev) => ({ ...prev, [sectionId]: false }));
     setReloadCount((count) => count + 1);
     setLastRefreshedAt(Date.now());
-  }, [sectionId, sectionSkills, refresh, isReloading]);
+  }, [sectionId, sectionSkills, refresh, cancelRefresh, sectionRefreshStatus]);
 
   const executeActions = useCallback(async (ids: string[]) => {
     const pending = pendingOnly(actions).filter((action) => ids.includes(action.id));
@@ -504,7 +638,7 @@ export default function App() {
     <div className="jv-shell">
       <NavigationRail
         selectedId={sectionId}
-        onSelect={setSectionId}
+        onSelect={handleSectionSelect}
         badgeFor={badgeFor}
         onShowAbout={() => setAboutOpen(true)}
       />
@@ -530,6 +664,10 @@ export default function App() {
             void toggleMaximize();
           }}
           onOpenCustomizer={() => setCustomizerOpen(true)}
+          hongyiEmbedActive={hongyiEmbedActive || hongyiOpening}
+          onCloseHongyiEmbed={() => {
+            void handleCloseHongyiEmbed();
+          }}
         />
         <main className="jv-content">
           {sectionId === "confirmation" ? (
@@ -542,9 +680,9 @@ export default function App() {
                   title="重新加载 Skill 数据"
                   aria-label="刷新确认中心"
                   onClick={() => setReloadCount((count) => count + 1)}
-                  disabled={isReloading}
+                  disabled={sectionRefreshStatus[sectionId] ?? false}
                 >
-                  <RefreshCw size={15} strokeWidth={2} className={isReloading ? "jv-refresh-spin" : undefined} />
+                  <RefreshCw size={15} strokeWidth={2} className={(sectionRefreshStatus[sectionId] ?? false) ? "jv-refresh-spin" : undefined} />
                 </button>
               </div>
               <ConfirmationCenterView
@@ -587,6 +725,96 @@ export default function App() {
                 setLastRefreshedAt((current) => (current === null ? Date.now() : current));
               }}
             />
+          ) : sectionId === "hongyi-external" ? (
+            // 虹翼外链：结构与其他分区一致——header（标题+状态+操作）+ 内容区。
+            // 嵌入激活/打开中：header 之下是面板窗口覆盖区（占位 slot，Rust 按其左上角对齐贴位，
+            // 见 hongyi_embed.rs set_slot / content_rect；用户要求与 skill 管理页等分区内容对齐）。
+            // 未激活：header 之下显示分区原生内容（经营情况卡片）。
+            <div className="jv-hongyi-embed-root">
+              <div className="jv-section-header">
+                <div className="jv-title">虹翼外链</div>
+                <div className="jv-section-header-actions">
+                  {hongyiOpening ? (
+                    <span className="jv-caption jv-muted">
+                      <RefreshCw size={13} strokeWidth={2} className="jv-refresh-spin" />
+                      正在登录…
+                    </span>
+                  ) : hongyiEmbedActive ? (
+                    <span
+                      className="jv-caption jv-muted"
+                      style={{ maxWidth: 320, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                      title={hongyiMessage || "虹翼页面已嵌入显示"}
+                    >
+                      {hongyiMessage || "虹翼页面已嵌入显示"}
+                    </span>
+                  ) : null}
+                  {hongyiEmbedActive ? (
+                    <button
+                      type="button"
+                      className="jv-icon-plain"
+                      title="返回本分区内容（隐藏内嵌页，页面与会话保留）"
+                      aria-label="返回虹翼外链分区内容"
+                      onClick={() => {
+                        void handleCloseHongyiEmbed();
+                      }}
+                    >
+                      <X size={15} strokeWidth={2} />
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+              {!hongyiEmbedActive && !hongyiOpening ? (
+                <>
+                  {hongyiFailed ? (
+                    <div className="jv-caption jv-muted" role="status" style={{ maxWidth: 560 }}>
+                      {hongyiMessage || "打开失败，请重试"}
+                    </div>
+                  ) : hongyiMessage ? (
+                    <div className="jv-caption jv-muted" role="status" style={{ maxWidth: 560 }}>
+                      {hongyiMessage}
+                    </div>
+                  ) : null}
+                  <div className="jv-section-header-actions" style={{ alignSelf: "flex-start", marginTop: -6 }}>
+                    {hongyiFailed ? (
+                      <button
+                        type="button"
+                        className="jv-btn-ok"
+                        onClick={() => {
+                          void handleOpenHongyiEmbed();
+                        }}
+                      >
+                        <RefreshCw size={14} strokeWidth={2} />
+                        重新打开
+                      </button>
+                    ) : !hongyiMessage ? (
+                      <button
+                        type="button"
+                        className="jv-btn-ok"
+                        onClick={() => {
+                          void handleOpenHongyiEmbed();
+                        }}
+                      >
+                        打开页面
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      className="jv-icon-plain"
+                      title="刷新经营数据（调用 hongyi-business-overview / hongyi-today-metrics Skill）"
+                      aria-label="刷新经营数据"
+                      onClick={() => {
+                        void refresh(["hongyi-business-overview", "hongyi-today-metrics"]);
+                      }}
+                    >
+                      <RefreshCw size={15} strokeWidth={2} />
+                    </button>
+                  </div>
+                  <HongyiBusinessView snapshot={hongyiSnapshot} />
+                </>
+              ) : null}
+              {/* 内容区占位：激活/打开中由面板窗口覆盖；左上角上报 Rust 用于对齐贴位。 */}
+              <div ref={hongyiSlotRef} className="jv-hongyi-slot" aria-hidden="true" />
+            </div>
           ) : section ? (
             <SkillDataView
               section={section}
@@ -605,7 +833,7 @@ export default function App() {
                 jsonl: auditJsonl,
                 onSelectDate: setAuditDate,
               }}
-              isRunning={isReloading}
+              isRunning={sectionRefreshStatus[sectionId] ?? false}
               onSectionRefresh={handleSectionRefresh}
               onBriefingApprovalDone={() => {}}
               fetchStatuses={skillStatuses}

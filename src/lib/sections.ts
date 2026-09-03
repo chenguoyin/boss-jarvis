@@ -11,6 +11,7 @@ import {
   Settings,
   Shield,
   Sunrise,
+  ExternalLink,
 } from "lucide-react";
 
 export interface AppSection {
@@ -40,6 +41,12 @@ export const appSections: AppSection[] = [
   },
   { id: "briefing", title: "每日晨报", icon: Sunrise, skills: ["daily-briefing"] },
   { id: "oa-todo", title: "OA 待办", icon: ListChecks, skills: ["oa-todo"] },
+  {
+    id: "hongyi-external",
+    title: "虹翼外链",
+    icon: ExternalLink,
+    skills: [],
+  },
   {
     id: "business",
     title: "经营情况",

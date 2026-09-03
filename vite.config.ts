@@ -7,6 +7,7 @@ const host = process.env.TAURI_DEV_HOST || "127.0.0.1";
 // Tauri 推荐的固定端口配置，避免与 macOS 原生壳冲突。
 export default defineConfig({
   plugins: [react()],
+  base: "./",
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),

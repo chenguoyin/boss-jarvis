@@ -70,10 +70,9 @@ export default function AuditLogView({ result, isRunning, onRefresh }: Props) {
           <button
             type="button"
             className="jv-icon-plain"
-            title="刷新审计日志"
-            aria-label="刷新审计日志"
+            title={isRunning ? "点击取消刷新" : "刷新审计日志"}
+            aria-label={isRunning ? "取消刷新" : "刷新审计日志"}
             onClick={onRefresh}
-            disabled={isRunning}
           >
             <RefreshCw size={15} strokeWidth={2} className={isRunning ? "jv-refresh-spin" : undefined} />
           </button>

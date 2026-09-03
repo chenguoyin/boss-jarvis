@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
-/// skills/manifest.json 是 skill → 平台 → 脚本 + runner 的唯一入口，
-/// include_str! 内嵌进壳层，改清单双端生效。
+/// skills/manifest.json 是 skill → 平台 → 脚本 + runner 的唯一入口。
+/// 便携包优先读取 exe 同级文件，内嵌副本仅用于开发环境和文件缺失兜底。
 pub const MANIFEST_JSON: &str = include_str!("../../skills/manifest.json");
 
 #[derive(Debug, Deserialize)]
@@ -90,8 +90,21 @@ pub struct ResolvedAction {
     pub script: String,
 }
 
+fn runtime_manifest_json() -> String {
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(parent) = exe.parent() {
+            let external = parent.join("skills").join("manifest.json");
+            if let Ok(text) = std::fs::read_to_string(external) {
+                return text;
+            }
+        }
+    }
+    MANIFEST_JSON.to_string()
+}
+
 pub fn load() -> Manifest {
-    let manifest: Manifest = serde_json::from_str(MANIFEST_JSON).expect("skills/manifest.json 解析失败");
+    let json = runtime_manifest_json();
+    let manifest: Manifest = serde_json::from_str(&json).expect("skills/manifest.json 解析失败");
     assert_eq!(manifest.schema_version, 1, "skills/manifest.json schemaVersion 不支持");
     for (id, entry) in &manifest.skills {
         if entry.kind == SkillKind::Platform && entry.macos.is_none() && entry.windows.is_none() {
@@ -133,7 +146,11 @@ fn validate_scripts_exist(manifest: &Manifest) {
         }
     }
     if !missing.is_empty() {
-        panic!("skills/manifest.json 声明的脚本缺失: {}", missing.join("; "));
+        panic!(
+            "skills/manifest.json 声明的脚本缺失（skills 根目录 {}）: {}",
+            root.display(),
+            missing.join("; ")
+        );
     }
 }
 
@@ -143,19 +160,36 @@ fn current_platform_label() -> &'static str { "windows" }
 fn current_platform_label() -> &'static str { "macos" }
 
 impl Manifest {
-    /// 解析 skills 根目录：环境变量 > exe 同级 skills/ > manifest 声明的 skillsRoot。
-    /// 便携包把 skills 放在 exe 旁边，无需用户配置。
+    /// 解析 skills 根目录：exe 同级 skills/ > BOSS_JARVIS_SKILLS_ROOT > 平台默认。
+    /// 便携包始终使用自带 Skill，避免旧环境变量将新程序重新指向已停用脚本。
+    ///
+    /// Windows 平台默认即「exe 同级 skills/」：即使该目录缺失也返回该位置，
+    /// 由 load() 的脚本校验给出清晰报错，绝不回落 %USERPROFILE%\.codex\skills 等
+    /// home 硬编码路径（不同机器间不同步正是脚本与 .shared 助手版本错位的根因）。
+    /// macOS 开发环境沿用 manifest 声明的 skillsRoot（~/.codex/skills）。
     pub fn skills_root(&self) -> PathBuf {
-        if let Ok(dir) = std::env::var("BOSS_JARVIS_SKILLS_ROOT") {
-            if !dir.is_empty() {
-                return PathBuf::from(dir);
-            }
-        }
+        // 1) exe 同级 skills/：便携包默认，存在即用。
         if let Ok(exe) = std::env::current_exe() {
             if let Some(parent) = exe.parent() {
                 let sibling = parent.join("skills");
                 if sibling.is_dir() {
                     return sibling;
+                }
+            }
+        }
+        // 2) 显式环境变量覆盖（Windows 开发 / 集成测试可指向暂存目录）。
+        if let Ok(dir) = std::env::var("BOSS_JARVIS_SKILLS_ROOT") {
+            if !dir.is_empty() {
+                return PathBuf::from(dir);
+            }
+        }
+        // 3) 平台默认：Windows 只认 exe 同级 skills/（缺失也返回该位置，让校验报错）；
+        //    macOS 开发回退到 manifest 声明的 skillsRoot。
+        #[cfg(target_os = "windows")]
+        {
+            if let Ok(exe) = std::env::current_exe() {
+                if let Some(parent) = exe.parent() {
+                    return parent.join("skills");
                 }
             }
         }

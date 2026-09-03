@@ -71,6 +71,42 @@ pub fn write_skill_env(values: &std::collections::HashMap<String, String>) -> Co
     }
 }
 
+/// 邮件签名单独保存为 UTF-8 文本，支持多行且不混入凭证配置。
+fn read_mail_signature_from(path: &std::path::Path) -> String {
+    std::fs::read_to_string(path)
+        .unwrap_or_default()
+        .trim()
+        .to_string()
+}
+
+fn write_mail_signature_to(path: &std::path::Path, value: &str) -> Result<(), String> {
+    let signature = value.trim();
+    if signature.is_empty() {
+        return Err("邮件签名不能为空。".to_string());
+    }
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+    }
+    std::fs::write(path, format!("{signature}\n")).map_err(|error| error.to_string())
+}
+
+pub fn read_mail_signature() -> String {
+    read_mail_signature_from(&crate::paths::mail_signature_path())
+}
+
+pub fn write_mail_signature(value: &str) -> CommandOutcome {
+    match write_mail_signature_to(&crate::paths::mail_signature_path(), value) {
+        Ok(()) => CommandOutcome {
+            ok: true,
+            summary: "邮件签名已保存。".to_string(),
+        },
+        Err(error) => CommandOutcome {
+            ok: false,
+            summary: format!("邮件签名保存失败：{error}"),
+        },
+    }
+}
+
 fn run_skill_action(skill: &str, action: &str, args: &[String]) -> (bool, String, String, String) {
     let manifest = crate::manifest::load();
     let Some(resolved) = manifest.resolve_action(skill, action) else {
@@ -156,7 +192,7 @@ fn json_string(stdout: &str, key: &str) -> Option<String> {
     json_field(stdout, key)?.as_str().map(String::from)
 }
 
-fn record_audit(payload: serde_json::Value) {
+pub(crate) fn record_audit(payload: serde_json::Value) {
     let manifest = crate::manifest::load();
     let Some(resolved) = manifest.resolve_action("audit-log", "record") else {
         return;
@@ -379,7 +415,7 @@ pub fn uninstall_skill(skill_id: &str) -> CommandOutcome {
     CommandOutcome { ok, summary }
 }
 
-/// 邮件标记已读：只操作该封邮件，不发送任何内容。
+/// 邮件标记已读：通过 Coremail 只操作该封邮件，不依赖本地邮件客户端。
 pub fn mark_mail_read(message_id: String) -> CommandOutcome {
     if message_id.trim().is_empty() {
         return failure(MAIL_SKILL_ID, "邮件标识未获取，无法标记已读。");
@@ -393,7 +429,7 @@ pub fn mark_mail_read(message_id: String) -> CommandOutcome {
     let summary = if marked {
         "已同步为已读。".to_string()
     } else {
-        format!("标记已读失败：{}", if error.is_empty() { "邮件客户端未响应".to_string() } else { error.clone() })
+        format!("标记已读失败：{}", if error.is_empty() { "Coremail 未响应".to_string() } else { error.clone() })
     };
     record_audit(audit_payload(
         MAIL_SKILL_ID,
@@ -576,7 +612,32 @@ fn failure(_skill: &str, message: &str) -> CommandOutcome {
 
 #[cfg(test)]
 mod tests {
-    use super::extract_script_error;
+    use super::{extract_script_error, read_mail_signature_from, write_mail_signature_to};
+
+    #[test]
+    fn mail_signature_round_trips_multiline_text() {
+        let path = std::env::temp_dir().join(format!(
+            "boss-jarvis-mail-signature-{}-{}.txt",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("系统时间应晚于 UNIX epoch")
+                .as_nanos(),
+        ));
+        let _ = std::fs::remove_file(&path);
+        write_mail_signature_to(&path, "第一行\n\n第二行").expect("邮件签名应可写入");
+        assert_eq!(read_mail_signature_from(&path), "第一行\n\n第二行");
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn mail_signature_rejects_empty_text() {
+        let path = std::env::temp_dir().join("boss-jarvis-empty-mail-signature.txt");
+        assert_eq!(
+            write_mail_signature_to(&path, "  \n "),
+            Err("邮件签名不能为空。".to_string()),
+        );
+    }
 
     #[test]
     fn prefers_last_error_line_from_stderr() {

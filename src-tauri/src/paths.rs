@@ -25,6 +25,20 @@ pub fn env_conf_path() -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("skill-env.conf"))
 }
 
+pub fn mail_signature_path() -> PathBuf {
+    home_dir()
+        .map(|h| h.join(".boss-jarvis").join("mail-signature.txt"))
+        .unwrap_or_else(|| PathBuf::from("mail-signature.txt"))
+}
+
+/// OA 会话快照（虹翼外链免登录复用）：localStorage/sessionStorage 的 token 键。
+/// 属运行期会话产物（与 Skill 侧 oa-session.json 同理），不入库、不进日志；落盘 0600。
+pub fn oa_session_snapshot_path() -> PathBuf {
+    home_dir()
+        .map(|h| h.join(".boss-jarvis").join("oa-session-snapshot.json"))
+        .unwrap_or_else(|| PathBuf::from("oa-session-snapshot.json"))
+}
+
 pub fn home_dir() -> Option<PathBuf> {
     #[cfg(target_os = "windows")]
     {

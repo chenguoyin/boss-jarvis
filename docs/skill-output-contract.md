@@ -60,7 +60,14 @@ boss-jarvis App 与各 Skill 之间的唯一接口。所有 Skill 的数据通�
 
 ```json
 { "total": "13", "count": 13,
+  "ok": true, "skill": "oa-todo",
+  "analysisStatus": "completed",
+  "analysisProgress": { "total": 13, "done": 13, "failed": 0 },
+  "homepageItems": [{ "title": "...", "priority": "P1", "priorityLabel": "高" }],
   "items": [{ "title": "...", "source": "...", "sender": "...", "time": "...",
+              "analysisStatus": "completed",
+              "analyzeError": "",
+              "semanticReviewStatus": "completed",
               "targetRef": {
                 "systemSign": "newoa",
                 "flowWorkId": "G_1_FNBQS-100353",
@@ -81,18 +88,28 @@ boss-jarvis App 与各 Skill 之间的唯一接口。所有 Skill 的数据通�
                 "attachments": [{ "text": "附件.pdf", "href": "..." }],
                 "amounts": [1000],
                 "dates": ["2026-08-29"] },
-              "level": "urgent",
               "analysis": { "priority": "P1", "priorityLabel": "...",
                             "riskLevel": "...", "riskPoints": ["..."],
                             "suggestion": "...", "detail": "...",
                             "deadlineDate": "2026-08-29",
                             "deadlineBasis": "hard",
                             "deadlineConfidence": "certain",
-                            "deadlineReason": "正文识别到处理截止日期 2026-08-29" } }] }
+                            "deadlineReason": "正文识别到处理截止日期 2026-08-29" },
+              "semanticReview": {
+                "mode": "model",
+                "classification": { "system": "OA", "docType": "公文", "scenario": "转发" },
+                "capability": { "status": "partial", "reason": "..." },
+                "reviewPoints": { "subject": "...", "basis": "...", "criteria": "...", "risks": ["..."] },
+                "diagnostic": { "blockedAt": "...", "missing": "...", "nextStep": "..." } } }] }
 ```
 
 - 优先级判定、风险点、处理建议全部在 Skill 侧完成；P1/P2/P3 颜色映射（red/yellow/green）也由 Skill 给出。
 - App 端只读展示，不再做任何优先级推断。
+- `analysisStatus`（envelope 级与条目级均有）：completed | failed | analyzing。analyzing 期间 App 展示进度与骨架，不得按失败处理；条目级 analyzing 表示该条正在分析中。
+- `analysisProgress`：{ total, done, failed }，仅 analyzing 期间有意义，每完成一条增量更新（writeJsonThrottled），App 据此渲染进度条。
+- `analyzeError`：条目分析失败原因（含重试次数），失败时必填；success 时为空字符串。
+- `semanticReviewStatus`：pending | running | completed | failed。规则分析完成后语义审核后台并行补齐，未到该阶段为 pending。
+- `semanticReview`：跨系统语义审核结果。`capability.status`：ok（可处理）/ partial（缺字段）/ unprocessable（不应走审批流程，如新闻/公文转发）；`reviewPoints.basis`/`criteria` 为审核依据与判定标准，`risks` 为逐条风险；`diagnostic` 为无法处理时的定位信息（blockedAt/missing/nextStep）。获取失败时回退为规则分析结果（mode=rule_fallback），绝不抛错中断。
 - `targetRef` 是 OA 接口返回的单据定位凭证，用于后续审批执行前身份校验；必须保留 `taskId` / `orderId` / `instanceCode` / `flowWorkId` / `url` / `appUrl` 等源字段，不得只用标题定位。标题可能只是“差旅审批”等泛名称，不能作为唯一凭证。
 - `documentDetail` 是源系统单据明细，适用于自身 OA、虹翼、智能财务、人力资源等所有 OA 列表来源；字段、表格、附件、金额和日期必须来自业务页面或 iframe 可见内容，取不到则为空数组或空字符串，不得猜测。
 - `source` 保留 OA 列表中的来源系统名；`documentDetail.sourceSystem` 保留详情读取时确认到的来源系统名。二者不一致时 App 同时展示，供人工核验。
@@ -173,8 +190,9 @@ boss-jarvis App 与各 Skill 之间的唯一接口。所有 Skill 的数据通�
 - `bodyHtml` 仅用于 App 详情弹层只读渲染；无 HTML 分支的邮件该字段为空字符串，App 回退展示 `bodySummary`。
 - App 渲染 HTML 时禁用 JavaScript 并拦截链接跳转。
 - macOS 与 Windows 均通过统一入口 `changhong-mail` 获取邮件、标记已读和打开回复，不在 App 或 manifest 做平台分发。
-- 用户点击 `rows[].id` 对应邮件主题时，App 直接调用 changhong-mail 的 `mark-mail-read.cjs --message-id=<id> --confirmed` 将该邮件标记为已读。
-- 回复正文由 changhong-mail 的 `generate-reply-draft.cjs` 生成（`{ok, mode: draft_only, subject, draftBody, generator, audit}`）；App 不内置任何回复文案，只负责串联 generate-reply-draft、prepare-reply、open-confirmed-reply。
+- 打开回复时，`open-confirmed-reply.cjs` 在 macOS 与 Windows 均使用 `mailto:` 交给系统默认邮件客户端；Windows 不依赖 Outlook COM 或固定的 `OUTLOOK.EXE` 路径。脚本只报告系统已接受启动请求，绝不发送邮件。
+- 用户点击 `rows[].id` 对应邮件主题时，App 原样传递该 ID 并调用 changhong-mail 的 `mark-mail-read.cjs --message-id=<id> --confirmed`。Skill 通过 OA/Coremail 会话调用 `mbox:updateMessageInfos`，只在 Coremail 返回 `S_OK` 后输出 `markedRead: true`；macOS 和 Windows 都不调用 Mail、Outlook、AppleScript 或 Outlook COM。
+- 回复正文由 changhong-mail 的 `generate-reply-draft.cjs` 生成（`{ok, mode: draft_only, subject, draftBody, generator, audit}`）；App 不内置任何回复文案，只负责串联 generate-reply-draft、prepare-reply、open-confirmed-reply。`prepare-reply` 从 App 设置写入的 `~/.boss-jarvis/mail-signature.txt` 读取签名并追加，Skill 源码不硬编码个人签名。
 - 生成采用两级策略：优先经 model-router 调公司大模型按"先分析邮件意图再撰写"的提示词（`reply-prompt.md`）产出结构化回复；模型未配置、失败或限流时回退本地模板。`generator` 字段标明实际来源（`model`/`template`）。金额、日期、人名只允许来自原邮件或回复依据，不得由模型编造。
 
 #### daily-briefing

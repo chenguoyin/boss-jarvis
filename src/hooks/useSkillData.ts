@@ -96,7 +96,10 @@ export function useSkillData(sectionSkills: string[], allSkills: string[]) {
   const [isReloading, setIsReloading] = useState(false);
   const [activity, setActivity] = useState<string | null>(null);
   const [statuses, setStatuses] = useState<Record<string, SkillFetchStatus>>({});
+  const [cancelledSkills, setCancelledSkills] = useState<Set<string>>(new Set());
   const sectionSkillsRef = useRef(sectionSkills);
+  // 跟踪当前正在进行的刷新操作，用于取消
+  const abortControllerRef = useRef<AbortController | null>(null);
   useEffect(() => {
     sectionSkillsRef.current = sectionSkills;
   }, [sectionSkills]);
@@ -137,18 +140,70 @@ export function useSkillData(sectionSkills: string[], allSkills: string[]) {
         await loadLocal([]);
         return;
       }
+      // 如果已经有正在进行的刷新，先取消它
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      abortControllerRef.current = new AbortController();
+      
+      const currentAbortController = abortControllerRef.current;
+      const cancelledSkillsSet = new Set<string>(targets);
+      
       setIsReloading(true);
       setFailures([]);
       setStatuses({});
+      setCancelledSkills(new Set());
       setActivity(targets.length === 1 ? "正在获取 1 项数据…" : `正在获取 ${targets.length} 项数据…`);
+      
+      // 立即加载当前数据，让用户能看到缓存或初始状态
+      await loadLocal(targets);
+      
+      let pollInterval: ReturnType<typeof setInterval> | null = null;
+      
       try {
-        const outcomes = await fetchSkills(targets);
+        const fetchPromise = fetchSkills(targets);
+        
+        // 启动轮询定期更新数据（每 2 秒刷新一次）
+        pollInterval = setInterval(async () => {
+          // 检查是否已取消
+          if (currentAbortController.signal.aborted) {
+            if (pollInterval) {
+              clearInterval(pollInterval);
+            }
+            return;
+          }
+          await loadLocal(targets);
+        }, 2000);
+        
+        const outcomes = await fetchPromise;
+        
+        // 检查是否已取消
+        if (currentAbortController.signal.aborted) {
+          setCancelledSkills(cancelledSkillsSet);
+          return;
+        }
+        
         const failed = outcomes.filter((o) => !o.ok);
         setFailures(failed.map(({ skill, error }) => ({ skill, error: humanizeError(skill, error) })));
-        await loadLocal(targets);
       } catch (error) {
+        // 检查是否已取消
+        if (currentAbortController.signal.aborted) {
+          setCancelledSkills(cancelledSkillsSet);
+          return;
+        }
         setFailures([{ skill: "workbench", error: String(error) }]);
       } finally {
+        // 停止轮询
+        if (pollInterval) {
+          clearInterval(pollInterval);
+        }
+        // 检查是否已取消
+        if (currentAbortController.signal.aborted) {
+          setCancelledSkills(cancelledSkillsSet);
+          return;
+        }
+        // 最终加载一次数据
+        await loadLocal(targets);
         setIsReloading(false);
         setActivity(null);
       }
@@ -156,19 +211,51 @@ export function useSkillData(sectionSkills: string[], allSkills: string[]) {
     [sectionSkills, loadLocal],
   );
 
+  // 取消当前正在进行的刷新操作
+  const cancelRefresh = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsReloading(false);
+    setActivity(null);
+  }, []);
+
   // 顶栏手动刷新与自动刷新一致：全量执行 Skill，再回读当前分区数据。
   const refreshAll = useCallback(async () => {
+      // 如果已经有正在进行的刷新，先取消它
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      abortControllerRef.current = new AbortController();
+      const currentAbortController = abortControllerRef.current;
+      
       setIsReloading(true);
       setFailures([]);
       setStatuses({});
+      setCancelledSkills(new Set());
       setActivity("正在获取全部数据…");
       try {
         const outcomes = await fetchAllSkills();
+        
+        // 检查是否已取消
+        if (currentAbortController.signal.aborted) {
+          return;
+        }
+        
         setFailures(outcomes.filter((o) => !o.ok).map(({ skill, error }) => ({ skill, error: humanizeError(skill, error) })));
         await loadLocal(sectionSkillsRef.current);
       } catch (error) {
+        // 检查是否已取消
+        if (currentAbortController.signal.aborted) {
+          return;
+        }
         setFailures([{ skill: "workbench", error: String(error) }]);
       } finally {
+        // 检查是否已取消
+        if (currentAbortController.signal.aborted) {
+          return;
+        }
         setIsReloading(false);
         setActivity(null);
       }
@@ -181,8 +268,10 @@ export function useSkillData(sectionSkills: string[], allSkills: string[]) {
     isReloading,
     activity,
     statuses,
+    cancelledSkills,
     refresh,
     refreshAll,
+    cancelRefresh,
     loadLocal,
   };
 }

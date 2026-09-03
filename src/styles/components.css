@@ -1088,6 +1088,54 @@
   color: var(--jv-urgent);
 }
 
+/* ---------- 虹翼外链 ---------- */
+.jv-hongyi-external-view {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 60px - 28px);
+  margin: -14px -28px;
+  padding: 0;
+}
+
+.jv-hongyi-external-view .jv-skill-header {
+  flex-shrink: 0;
+  padding: 16px;
+  border-bottom: 1px solid var(--jv-stroke);
+}
+
+.jv-hongyi-external-container {
+  flex: 1;
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.jv-hongyi-external-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: var(--jv-bg);
+}
+
+.jv-hongyi-external-loading,
+.jv-hongyi-external-error {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: var(--jv-bg);
+}
+
+.jv-hongyi-external-error {
+  color: var(--jv-urgent);
+}
+
 /* ---------- OA 待办 / 资金费用 ---------- */
 .jv-oa-mismatch {
   display: flex;
@@ -1106,6 +1154,32 @@
 
 .jv-oa-summary { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 16px; margin-top: 14px; color: var(--jv-muted); }
 .jv-oa-summary b { margin: 0 3px; color: var(--jv-text); font-weight: 700; }
+
+/* 分析进度条 */
+.jv-oa-progress { margin-top: 12px; padding: 10px 14px; background: color-mix(in srgb, var(--jv-blue) 8%, transparent); border-radius: var(--jv-radius-tag); }
+.jv-oa-progress-text { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: var(--jv-fs-caption); color: var(--jv-text); }
+.jv-oa-progress-count { color: var(--jv-blue); font-weight: var(--jv-fw-control); }
+.jv-oa-progress-bar { height: 6px; background: var(--jv-line); border-radius: 3px; overflow: hidden; }
+.jv-oa-progress-fill { height: 100%; background: var(--jv-blue); border-radius: 3px; transition: width 0.3s ease; }
+
+/* 分析中状态 */
+.jv-oa-row-card.jv-oa-analyzing { opacity: 0.85; }
+.jv-oa-status-chip[data-level="analyzing"] { background: color-mix(in srgb, var(--jv-blue) 14%, transparent); color: var(--jv-blue); }
+.jv-analyzing-indicator { color: var(--jv-blue); animation: jv-pulse 1.5s ease-in-out infinite; }
+.jv-analyzing-spinner { display: inline-block; animation: jv-spin 1s linear infinite; margin-right: 6px; }
+.jv-sheet-analyzing .jv-sheet-body { opacity: 0.7; }
+.jv-sheet-analyzing { animation: jv-pulse 2s ease-in-out infinite; }
+.jv-analyzing-message { display: flex; align-items: center; justify-content: center; padding: 20px; color: var(--jv-blue); font-size: var(--jv-fs-body); }
+
+@keyframes jv-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+@keyframes jv-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
 
 .jv-dot { display: inline-block; width: 8px; height: 8px; margin-right: 4px; border-radius: 50%; vertical-align: middle; }
 .jv-dot[data-level="urgent"] { background: var(--jv-urgent); }
@@ -1827,20 +1901,53 @@
   color: var(--jv-blue);
 }
 
+/* 排班/日程表格样式 */
+.jv-calendar-table {
+  border: 1px solid var(--jv-line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.jv-calendar-table-header {
+  display: grid;
+  background: var(--jv-bg-secondary);
+  border-bottom: 2px solid var(--jv-line);
+  font-weight: 600;
+  color: var(--jv-text);
+}
+
+.jv-calendar-table-header span {
+  padding: 10px 12px;
+  font-size: var(--jv-fs-caption);
+}
+
+.jv-calendar-table-body {
+  display: flex;
+  flex-direction: column;
+}
+
 .jv-calendar-event-row {
   display: grid;
   grid-template-columns: 36px 1fr 140px 170px 64px;
   align-items: center;
-  padding: 12px 0;
+  padding: 12px;
   border-bottom: 1px solid color-mix(in srgb, var(--jv-line) 60%, transparent);
+}
+
+.jv-calendar-event-row:hover {
+  background: var(--jv-bg-hover);
 }
 
 .jv-calendar-reminder-row {
   display: grid;
   grid-template-columns: 36px 1fr 170px 64px;
   align-items: center;
-  padding: 12px 0;
+  padding: 12px;
   border-bottom: 1px solid color-mix(in srgb, var(--jv-line) 60%, transparent);
+}
+
+.jv-calendar-reminder-row:hover {
+  background: var(--jv-bg-hover);
 }
 
 .jv-calendar-event-row:last-child,
@@ -1959,9 +2066,9 @@
 }
 
 .jv-oa-sheet {
-  width: 640px;
-  height: 520px;
-  max-height: min(520px, calc(100vh - 48px));
+  width: 1178px;
+  height: 832px;
+  max-height: min(832px, calc(100vh - 48px));
 }
 
 .jv-oa-sheet .jv-sheet-header > div:first-child {
@@ -2032,6 +2139,20 @@
   overflow-wrap: anywhere;
 }
 
+/* 金额字段样式 */
+.jv-oa-field-money {
+  background: linear-gradient(135deg, var(--jv-amount-tint-a) 0%, var(--jv-amount-tint-b) 100%);
+  border-radius: 6px;
+  padding: 4px 8px;
+  margin: -4px -8px;
+}
+
+.jv-oa-field-value-money {
+  color: var(--jv-primary);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
 .jv-oa-detail-tables {
   display: flex;
   flex-direction: column;
@@ -2067,6 +2188,77 @@
   border-right: 0;
 }
 
+/* 正文表格化（chfssc）：流程日志纯文本折叠 */
+.jv-oa-collapse {
+  margin-top: 4px;
+}
+.jv-oa-collapse summary {
+  cursor: pointer;
+  user-select: none;
+  padding: 4px 0;
+}
+.jv-oa-collapse summary:hover {
+  opacity: 0.8;
+}
+.jv-oa-collapse .jv-sheet-text {
+  margin-top: 4px;
+  white-space: pre-wrap;
+}
+
+/* 表格表头样式 */
+.jv-oa-table-header-row {
+  background: var(--jv-bg-secondary);
+}
+
+.jv-oa-table-header {
+  font-weight: 600;
+  color: var(--jv-text);
+  background: var(--jv-bg-secondary);
+}
+
+/* 表格金额单元格 */
+.jv-oa-table-money {
+  color: var(--jv-primary);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* 键值对表格（newoa 表单型详情页）：label 列灰底、窄列、右对齐 */
+.jv-oa-kv-table {
+  min-width: 320px;
+}
+
+.jv-oa-kv-table .jv-oa-kv-label {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--jv-line);
+  border-right: 1px solid var(--jv-line);
+  background: var(--jv-bg-secondary);
+  color: var(--jv-text);
+  font-weight: 600;
+  white-space: nowrap;
+  text-align: right;
+  vertical-align: top;
+  width: 1%;
+}
+
+.jv-oa-kv-table .jv-oa-kv-value {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--jv-line);
+  border-right: 1px solid var(--jv-line);
+  color: var(--jv-text);
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.jv-oa-kv-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.jv-oa-kv-table .jv-oa-kv-value:last-child {
+  border-right: 0;
+}
+
 .jv-oa-attachments {
   display: flex;
   flex-direction: column;
@@ -2074,7 +2266,19 @@
 }
 
 .jv-oa-attachment {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   overflow-wrap: anywhere;
+}
+
+.jv-oa-attachment-icon {
+  color: var(--jv-muted);
+  flex-shrink: 0;
+}
+
+.jv-oa-attachment-name {
+  color: var(--jv-text);
 }
 
 /* ---------- 写操作与配置 ---------- */
@@ -2270,6 +2474,12 @@
   background: var(--jv-card);
   border: 1px solid var(--jv-line);
   border-radius: 8px;
+}
+
+.jv-settings-textarea {
+  min-height: 150px;
+  line-height: 1.6;
+  resize: vertical;
 }
 
 .jv-settings-theme {
@@ -3271,4 +3481,21 @@
 /* 移除旧的表格布局样式 */
 .jv-mail-row-head {
   display: none;
+}
+
+/* ---------- 虹翼外链分区：结构与其它分区一致（header + 内容区） ----------
+   激活/打开中：child WebView 按 .jv-hongyi-slot 左上角贴位覆盖（Rust set_slot/content_rect，
+   与 skill 管理页等内容页对齐）；未激活：header 下显示原生卡片，slot 作底部占位。
+   gap 0：标题「虹翼外链」与网页之间不留空隙（2026-09-02 用户反馈留白太多、上移无效）。 */
+.jv-hongyi-embed-root {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.jv-hongyi-slot {
+  flex: 1;
+  min-height: 0;
 }

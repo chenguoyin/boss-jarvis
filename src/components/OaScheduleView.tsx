@@ -111,47 +111,55 @@ export default function OaScheduleView({ result }: Props) {
           {result.events.length > 0 && (
             <section className="jv-calendar-section">
               <div className="jv-calendar-section-title jv-body"><Calendar size={15} strokeWidth={2} />今日日程（{result.events.length}）</div>
-              <div className="jv-calendar-event-row jv-caption">
-                <span className="jv-skill-col-index">#</span>
-                <span>日程</span>
-                <span className="jv-calendar-col-calendar">日历</span>
-                <span className="jv-calendar-col-time">时间</span>
-                <span className="jv-calendar-col-level">级别</span>
+              <div className="jv-calendar-table">
+                <div className="jv-calendar-table-header">
+                  <span className="jv-skill-col-index">#</span>
+                  <span>日程</span>
+                  <span className="jv-calendar-col-calendar">日历</span>
+                  <span className="jv-calendar-col-time">时间</span>
+                  <span className="jv-calendar-col-level">级别</span>
+                </div>
+                <div className="jv-calendar-table-body">
+                  {result.events.map((event, index) => (
+                    <button type="button" key={event.id} className="jv-calendar-event-row jv-body jv-calendar-item" onClick={() => setSelectedEvent(event)} title="点击查看日历详情">
+                      <span className="jv-skill-col-index">{index + 1}</span>
+                      <span className="jv-skill-main">
+                        <span className="jv-body jv-skill-name">{event.title}</span>
+                        {event.reasons.length > 0 && <span className="jv-caption">{event.reasons.join("；")}</span>}
+                      </span>
+                      <span className="jv-calendar-col-calendar">{event.calendar}</span>
+                      <span className="jv-calendar-col-time">{event.isAllDay ? "全天" : timeRange(event.start, event.end)}</span>
+                      <span className={"jv-calendar-col-level jv-level-" + levelClass(event.priority)}>{levelTitle(event.priority)}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
-              {result.events.map((event, index) => (
-                <button type="button" key={event.id} className="jv-calendar-event-row jv-body jv-calendar-item" onClick={() => setSelectedEvent(event)} title="点击查看日历详情">
-                  <span className="jv-skill-col-index">{index + 1}</span>
-                  <span className="jv-skill-main">
-                    <span className="jv-body jv-skill-name">{event.title}</span>
-                    {event.reasons.length > 0 && <span className="jv-caption">{event.reasons.join("；")}</span>}
-                  </span>
-                  <span className="jv-calendar-col-calendar">{event.calendar}</span>
-                  <span className="jv-calendar-col-time">{event.isAllDay ? "全天" : timeRange(event.start, event.end)}</span>
-                  <span className={"jv-calendar-col-level jv-level-" + levelClass(event.priority)}>{levelTitle(event.priority)}</span>
-                </button>
-              ))}
             </section>
           )}
           {result.reminders.length > 0 && (
             <section className="jv-calendar-section">
               <div className="jv-calendar-section-title jv-body"><Bell size={15} strokeWidth={2} />提醒事项（{result.reminders.length}）</div>
-              <div className="jv-calendar-reminder-row jv-caption">
-                <span className="jv-skill-col-index">#</span>
-                <span>提醒</span>
-                <span className="jv-calendar-col-time">截止时间</span>
-                <span className="jv-calendar-col-level">级别</span>
+              <div className="jv-calendar-table">
+                <div className="jv-calendar-table-header">
+                  <span className="jv-skill-col-index">#</span>
+                  <span>提醒</span>
+                  <span className="jv-calendar-col-time">截止时间</span>
+                  <span className="jv-calendar-col-level">级别</span>
+                </div>
+                <div className="jv-calendar-table-body">
+                  {result.reminders.map((reminder, index) => (
+                    <button type="button" key={reminder.id} className="jv-calendar-reminder-row jv-body jv-calendar-item" onClick={() => setSelectedReminder(reminder)} title="点击查看提醒详情">
+                      <span className="jv-skill-col-index">{index + 1}</span>
+                      <span className="jv-skill-main">
+                        <span className="jv-body jv-skill-name">{reminder.title}</span>
+                        {reminder.notes !== "" && <span className="jv-caption">{reminder.notes}</span>}
+                      </span>
+                      <span className="jv-calendar-col-time">{reminder.due === "" ? "未获取" : shortTime(reminder.due)}</span>
+                      <span className={"jv-calendar-col-level jv-level-" + levelClass(reminder.priority)}>{levelTitle(reminder.priority)}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
-              {result.reminders.map((reminder, index) => (
-                <button type="button" key={reminder.id} className="jv-calendar-reminder-row jv-body jv-calendar-item" onClick={() => setSelectedReminder(reminder)} title="点击查看提醒详情">
-                  <span className="jv-skill-col-index">{index + 1}</span>
-                  <span className="jv-skill-main">
-                    <span className="jv-body jv-skill-name">{reminder.title}</span>
-                    {reminder.notes !== "" && <span className="jv-caption">{reminder.notes}</span>}
-                  </span>
-                  <span className="jv-calendar-col-time">{reminder.due === "" ? "未获取" : shortTime(reminder.due)}</span>
-                  <span className={"jv-calendar-col-level jv-level-" + levelClass(reminder.priority)}>{levelTitle(reminder.priority)}</span>
-                </button>
-              ))}
             </section>
           )}
         </div>

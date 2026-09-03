@@ -29,6 +29,10 @@
   --jv-purple: #7067d9;
   --jv-verdict: #f0f8fe;
 
+  /* 金额字段淡蓝背景渐变（两端） */
+  --jv-amount-tint-a: rgba(59, 130, 246, 0.06);
+  --jv-amount-tint-b: rgba(59, 130, 246, 0.02);
+
   /* 语义状态色：urgent=红 / attention=琥珀 / normal=绿 / missing=弱文字 */
   --jv-urgent: var(--jv-red);
   --jv-attention: var(--jv-amber);
@@ -114,6 +118,9 @@
   --jv-red: #f27480;
   --jv-purple: #847ce2;
   --jv-verdict: #242c36;
+
+  --jv-amount-tint-a: rgba(74, 168, 250, 0.10);
+  --jv-amount-tint-b: rgba(74, 168, 250, 0.05);
 
   --jv-urgent: var(--jv-red);
   --jv-attention: var(--jv-amber);

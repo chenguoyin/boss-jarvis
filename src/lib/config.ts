@@ -11,6 +11,10 @@ const KEYS = {
   autoRefreshInterval: "system.autoRefreshInterval",
   homeModuleOrder: "home.moduleOrder",
   hiddenHomeModules: "home.hiddenModules",
+  hongyiExternalUrl: "system.hongyiExternalUrl",
+  hongyiCookie: "system.hongyiCookie",
+  hongyiXSid: "system.hongyiXSid",
+  hongyiRefererSign: "system.hongyiRefererSign",
 } as const;
 
 export const DEFAULT_TITLE_FONT_SIZE = 14;
@@ -131,6 +135,40 @@ export function setHomeModuleConfig(config: HomeModuleConfig): void {
     KEYS.hiddenHomeModules,
     JSON.stringify([...config.hidden].sort()),
   );
+}
+
+export const DEFAULT_HONGYI_EXTERNAL_URL = "https://hongyi.changhong.com/rcsit-prc-web/#/rcsit-prc-web/report/departmentDashboard";
+
+export function getHongyiExternalUrl(): string | null {
+  return localStorage.getItem(KEYS.hongyiExternalUrl);
+}
+
+export function setHongyiExternalUrl(url: string): void {
+  localStorage.setItem(KEYS.hongyiExternalUrl, url);
+}
+
+export function getHongyiCookie(): string | null {
+  return localStorage.getItem(KEYS.hongyiCookie);
+}
+
+export function setHongyiCookie(cookie: string): void {
+  localStorage.setItem(KEYS.hongyiCookie, cookie);
+}
+
+export function getHongyiXSid(): string | null {
+  return localStorage.getItem(KEYS.hongyiXSid);
+}
+
+export function setHongyiXSid(xSid: string): void {
+  localStorage.setItem(KEYS.hongyiXSid, xSid);
+}
+
+export function getHongyiRefererSign(): string | null {
+  return localStorage.getItem(KEYS.hongyiRefererSign);
+}
+
+export function setHongyiRefererSign(refererSign: string): void {
+  localStorage.setItem(KEYS.hongyiRefererSign, refererSign);
 }
 
 function systemPrefersDark(): boolean {

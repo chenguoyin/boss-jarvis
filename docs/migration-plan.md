@@ -78,7 +78,7 @@ macOS 与 Windows 共用同一套前端、Rust 核心与设计系统；平台差
   支持日期下拉切换与刷新。
 
 ### Phase 4：确认中心 / 审计 / 配置
-- 行为一致：OA 详情弹层点同意/不同意即确认直接执行并审计；Skill 启停/AI 写操作先进确认中心；邮件只标记已读/打开草稿，绝不自动发送
+- 行为一致：OA 详情弹层点同意/不同意即确认直接执行并审计；Skill 启停/AI 写操作先进确认中心；邮件标记已读直连 Coremail、不依赖本地客户端，回复只打开默认客户端草稿且绝不自动发送
 
 落地记录：
 - [x] Rust 写操作命令层：`src-tauri/src/command_runtime.rs`。
@@ -138,9 +138,9 @@ macOS 与 Windows 共用同一套前端、Rust 核心与设计系统；平台差
 ### Phase T（尾段单独处理）
 - Tauri sidecar 内嵌 node.exe（最终用户零安装，仅依赖 WebView2）
 - Playwright `channel:'msedge'`（Windows）
-- Outlook COM（内置 PowerShell）或 Microsoft Graph 的邮件/日历 Skill
+- Windows 默认邮件客户端的 `mailto:` 回复实机验收；日历继续采用 Outlook COM 或 Microsoft Graph
 - Windows CI（`build-windows.yml`）
-- 真实 Windows + Outlook 实机验收
+- 真实 Windows + 系统默认邮件客户端实机验收
 
 ## 安全红线（全程保留）
 - 凭证只存 `~/.boss-jarvis/skill-env.conf`，不硬编码账号/密码/Key/Token/Cookie。

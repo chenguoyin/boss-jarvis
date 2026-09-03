@@ -8,12 +8,15 @@ import {
 } from "@/lib/config";
 import {
   manageSchedule,
+  readMailSignature,
   readSkillEnv,
   scheduleStatus,
+  writeMailSignature,
   writeSkillEnv,
   type ScheduleAction,
   type ScheduleStatus,
 } from "@/lib/skillBridge";
+import { DEFAULT_HONGYI_EXTERNAL_URL, getHongyiExternalUrl, setHongyiExternalUrl, getHongyiCookie, getHongyiXSid } from "@/lib/config";
 
 interface Props {
   theme: Theme;
@@ -98,6 +101,7 @@ export default function SettingsView({
   onAutoRefreshChange,
 }: Props) {
   const [values, setValues] = useState<Record<string, string>>({});
+  const [mailSignature, setMailSignature] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [reveal, setReveal] = useState<Set<string>>(new Set());
   const [status, setStatus] = useState<string | null>(null);
@@ -107,20 +111,43 @@ export default function SettingsView({
   const [scheduleBusy, setScheduleBusy] = useState(false);
   const [scheduleMessage, setScheduleMessage] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<ScheduleAction | null>(null);
+  const [hongyiUrl, setHongyiUrl] = useState("");
+  const [hongyiCookie, setHongyiCookie] = useState("");
+  const [hongyiXSid, setHongyiXSid] = useState("");
+  const [hongyiRefererSign, setHongyiRefererSign] = useState("");
 
   useEffect(() => {
-    void readSkillEnv().then((env) => {
+    void Promise.all([readSkillEnv(), readMailSignature()]).then(([env, signature]) => {
       setValues(env);
+      setMailSignature(signature);
       setLoaded(true);
     });
+  }, []);
+
+  useEffect(() => {
+    const url = getHongyiExternalUrl();
+    setHongyiUrl(url ?? DEFAULT_HONGYI_EXTERNAL_URL);
+    setHongyiCookie(getHongyiCookie() ?? "");
+    setHongyiXSid(getHongyiXSid() ?? "");
+    setHongyiRefererSign(localStorage.getItem("system.hongyiRefererSign") ?? "");
   }, []);
 
   const save = async () => {
     setSaving(true);
     setStatus("正在保存配置…");
     try {
-      const outcome = await writeSkillEnv(values);
-      setStatus(outcome.summary);
+      const [envOutcome, signatureOutcome] = await Promise.all([
+        writeSkillEnv(values),
+        writeMailSignature(mailSignature),
+      ]);
+      setStatus(
+        envOutcome.ok && signatureOutcome.ok
+          ? "配置与邮件签名已保存，Skill 下次运行生效。"
+          : [envOutcome, signatureOutcome]
+              .filter((outcome) => !outcome.ok)
+              .map((outcome) => outcome.summary)
+              .join(" "),
+      );
     } catch {
       setStatus("保存配置失败，请稍后重试");
     } finally {
@@ -390,7 +417,7 @@ export default function SettingsView({
       </section>
 
       <section className="jv-settings-section">
-        <div className="jv-title">OA 账号与模型调用</div>
+        <div className="jv-title">账号、模型与邮件</div>
         {ENV_FIELDS.map((field) => (
           <div className="jv-settings-row" key={field.key}>
             <div className="jv-settings-row-head">
@@ -417,8 +444,20 @@ export default function SettingsView({
             />
           </div>
         ))}
+        <div className="jv-settings-row">
+          <div className="jv-settings-row-head">
+            <span className="jv-body jv-settings-label">邮件签名</span>
+          </div>
+          <textarea
+            className="jv-body jv-settings-input jv-settings-textarea"
+            aria-label="邮件签名"
+            placeholder="请输入邮件回复时追加的签名"
+            value={mailSignature}
+            onChange={(event) => setMailSignature(event.target.value)}
+          />
+        </div>
         <div className="jv-caption jv-muted jv-settings-note">
-          凭证只保存在本机 ~/.boss-jarvis/skill-env.conf，不上传任何服务器；保存后 Skill 下次运行生效。
+          凭证保存在本机 ~/.boss-jarvis/skill-env.conf，邮件签名保存在同目录的 mail-signature.txt；均不上传任何服务器。
         </div>
         <div className="jv-settings-save">
           <button
@@ -448,6 +487,77 @@ export default function SettingsView({
         <div className="jv-settings-dir">
           <span className="jv-body jv-settings-label">晨报输出</span>
           <span className="jv-caption jv-muted">~/.codex/workbench-reports</span>
+        </div>
+      </section>
+
+      <section className="jv-settings-section">
+        <div className="jv-title">虹翼外链</div>
+        <div className="jv-settings-row">
+          <div className="jv-settings-row-head">
+            <span className="jv-body jv-settings-label">虹翼外链 URL</span>
+          </div>
+          <input
+            className="jv-body jv-settings-input"
+            type="url"
+            placeholder="https://hongyi.changhong.com/..."
+            value={hongyiUrl}
+            onChange={(event) => setHongyiUrl(event.target.value)}
+          />
+        </div>
+        <div className="jv-settings-row">
+          <div className="jv-settings-row-head">
+            <span className="jv-body jv-settings-label">Cookie</span>
+          </div>
+          <input
+            className="jv-body jv-settings-input"
+            type="password"
+            placeholder="用于 SSO 认证的 Cookie"
+            value={hongyiCookie}
+            onChange={(event) => setHongyiCookie(event.target.value)}
+          />
+        </div>
+        <div className="jv-settings-row">
+          <div className="jv-settings-row-head">
+            <span className="jv-body jv-settings-label">x-sid</span>
+          </div>
+          <input
+            className="jv-body jv-settings-input"
+            type="password"
+            placeholder="用于 SSO 认证的 Session ID"
+            value={hongyiXSid}
+            onChange={(event) => setHongyiXSid(event.target.value)}
+          />
+        </div>
+        <div className="jv-settings-row">
+          <div className="jv-settings-row-head">
+            <span className="jv-body jv-settings-label">referer-sign</span>
+          </div>
+          <input
+            className="jv-body jv-settings-input"
+            type="password"
+            placeholder="用于 SSO 认证的 Referer 签名"
+            value={hongyiRefererSign}
+            onChange={(event) => setHongyiRefererSign(event.target.value)}
+          />
+        </div>
+        <div className="jv-caption jv-muted jv-settings-note">
+          配置虹翼系统的访问地址和认证信息。认证信息用于 SSO 自动登录。
+        </div>
+        <div className="jv-settings-save">
+          <button
+            type="button"
+            className="jv-control jv-settings-save-button"
+            onClick={() => {
+              setHongyiExternalUrl(hongyiUrl);
+              localStorage.setItem("system.hongyiCookie", hongyiCookie);
+              localStorage.setItem("system.hongyiXSid", hongyiXSid);
+              localStorage.setItem("system.hongyiRefererSign", hongyiRefererSign);
+              setStatus("虹翼外链配置已保存");
+            }}
+          >
+            <Save size={15} strokeWidth={2} />
+            保存配置
+          </button>
         </div>
       </section>
     </div>

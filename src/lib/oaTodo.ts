@@ -63,6 +63,8 @@ export interface OATodoTargetRef {
   nodeName: string;
 }
 
+export type AnalysisStatus = "analyzing" | "completed" | "failed" | "pending";
+
 export interface OATodoItem {
   title: string;
   source: string;
@@ -72,6 +74,7 @@ export interface OATodoItem {
   targetRef: OATodoTargetRef | null;
   documentDetail: OATodoDocumentDetail | null;
   analysis: OATodoAnalysis | null;
+  analysisStatus: AnalysisStatus;
   analyzeError: string;
   displaySender: string;
 }
@@ -82,6 +85,8 @@ export interface OATodoResult {
   items: OATodoItem[];
   fetchedAt: string;
   hasCountMismatch: boolean;
+  analysisStatus: AnalysisStatus;
+  analysisProgress: { total: number; done: number; failed?: number } | null;
 }
 
 function record(value: unknown): Record<string, unknown> {
@@ -224,6 +229,14 @@ function targetRefFrom(value: unknown): OATodoTargetRef | null {
 
 const fullTime = formatDateTime;
 
+function analysisStatusFrom(value: unknown): AnalysisStatus {
+  const status = text(value);
+  if (status === "analyzing") return "analyzing";
+  if (status === "completed") return "completed";
+  if (status === "failed") return "failed";
+  return "pending";
+}
+
 export function parseOATodo(envelope: SkillEnvelope | null): OATodoResult | null {
   if (envelope === null || !envelope.ok) return null;
   const items = Array.isArray(envelope.items)
@@ -234,6 +247,7 @@ export function parseOATodo(envelope: SkillEnvelope | null): OATodoResult | null
           if (title === "") return null;
           const sender = text(entry.sender);
           const creator = text(entry.creator);
+          const status = analysisStatusFrom(entry.analysisStatus);
           return {
             title,
             source: text(entry.source),
@@ -243,6 +257,7 @@ export function parseOATodo(envelope: SkillEnvelope | null): OATodoResult | null
             targetRef: targetRefFrom(entry.targetRef),
             documentDetail: documentDetailFrom(entry.documentDetail),
             analysis: analysisFrom(entry.analysis),
+            analysisStatus: status,
             analyzeError: text(entry.analyzeError),
             displaySender: sender === "" ? creator : sender,
           };
@@ -251,12 +266,26 @@ export function parseOATodo(envelope: SkillEnvelope | null): OATodoResult | null
     : [];
   const count = numberOr(envelope.count, items.length);
   const total = numberOr(envelope.total, items.length);
+  
+  // 解析整体分析状态
+  const analysisStatus = analysisStatusFrom(envelope.analysisStatus);
+  const analysisProgress = record(envelope.analysisProgress);
+  const progress = analysisProgress.total !== undefined 
+    ? { 
+        total: numberOr(analysisProgress.total, 0), 
+        done: numberOr(analysisProgress.done, 0),
+        failed: numberOr(analysisProgress.failed, 0)
+      }
+    : null;
+
   return {
     total,
     count,
     items,
     fetchedAt: fullTime(envelope.fetchedAt),
     hasCountMismatch: total !== count,
+    analysisStatus,
+    analysisProgress: progress,
   };
 }
 
@@ -301,7 +330,7 @@ export function summarizeOATodo(result: OATodoResult | null): OATodoOverview {
     total: result.items.length,
     urgentCount: result.items.filter((item) => item.analysis?.riskLevel === "urgent").length,
     attentionCount: result.items.filter((item) => item.analysis?.riskLevel === "attention").length,
-    pendingAnalysisCount: result.items.filter((item) => item.analysis === null).length,
+    pendingAnalysisCount: result.items.filter((item) => item.analysisStatus === "analyzing" || item.analysis === null).length,
   };
 }
 

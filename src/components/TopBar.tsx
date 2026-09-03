@@ -5,6 +5,7 @@ import {
   CircleCheck,
   Clock,
   Maximize2,
+  PanelTopClose,
   RefreshCw,
   Search,
   Settings,
@@ -29,6 +30,9 @@ interface Props {
   onOpenAssistant: () => void;
   onToggleMaximize: () => void;
   onOpenCustomizer: () => void;
+  /** 「虹翼外链」内嵌页是否正在展示/打开中（隐藏地址栏后的退出入口，2026-09-02）。 */
+  hongyiEmbedActive?: boolean;
+  onCloseHongyiEmbed?: () => void;
 }
 
 const formatTime = formatDateTime;
@@ -56,6 +60,8 @@ export default function TopBar({
   onOpenAssistant,
   onToggleMaximize,
   onOpenCustomizer,
+  hongyiEmbedActive = false,
+  onCloseHongyiEmbed,
 }: Props) {
   const [nowTick, setNowTick] = useState(() => Date.now());
 
@@ -144,10 +150,9 @@ export default function TopBar({
         <button
           type="button"
           className="jv-icon-plain"
-          title={refreshTitle}
-          aria-label="刷新"
+          title={isReloading ? "点击取消刷新" : refreshTitle}
+          aria-label={isReloading ? "取消刷新" : "刷新"}
           onClick={onRefresh}
-          disabled={isReloading}
         >
           <refreshIcon.Component
             size={15}
@@ -157,6 +162,18 @@ export default function TopBar({
         </button>
 
         <ThemePicker theme={theme} onChange={onThemeChange} />
+
+        {hongyiEmbedActive && (
+          <button
+            type="button"
+            className="jv-icon-plain"
+            title="返回虹翼外链分区内容（关闭内嵌页）"
+            aria-label="关闭虹翼内嵌页"
+            onClick={onCloseHongyiEmbed}
+          >
+            <PanelTopClose size={15} strokeWidth={2} />
+          </button>
+        )}
 
         {showsCustomize && (
           <button

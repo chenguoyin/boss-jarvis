@@ -2,12 +2,89 @@ mod manifest;
 mod paths;
 mod skill_runtime;
 mod command_runtime;
+mod hongyi_dashboard;
+mod hongyi_embed;
 mod runtime_log;
 mod notify_runtime;
 mod llm_runtime;
 
 use std::sync::Arc;
 use crate::notify_runtime::set_dock_badge;
+
+/// 打开虹翼数智「部门看板」：新建/复用专用 WebView 窗口，自动完成 OA 单点并导航到看板。
+/// 详情与链路事实见 docs/hongyi-dashboard-in-app.md；实现见 hongyi_dashboard.rs。
+#[tauri::command]
+async fn open_hongyi_dashboard(app: tauri::AppHandle) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || hongyi_dashboard::open(&app))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+/// 在 App 主窗口内容区嵌入显示配置的虹翼 URL 页面（子 WebView 自跑 OA 单点后整页直达，
+/// 实现见 hongyi_embed.rs；URL 通过系统配置 HONGYI_EXTERNAL_URL 覆盖，默认部门看板）。
+#[tauri::command]
+async fn open_hongyi_in_app(app: tauri::AppHandle) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || hongyi_embed::open_in_app(&app))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+/// 前端上报「虹翼外链」分区内容区占位左上角（CSS 逻辑 px）：面板窗口据此精确贴位，
+/// 与 skill 管理页等内容页布局对齐（2026-09-02 用户要求）。
+#[tauri::command]
+fn hongyi_embed_set_slot(left: f64, top: f64) -> Result<(), String> {
+    hongyi_embed::set_slot(left, top)
+}
+
+/// 关闭 App 主窗口内嵌的虹翼页面（隐藏子 WebView；切换分区时由前端调用）。
+#[tauri::command]
+fn close_hongyi_embed(app: tauri::AppHandle) -> Result<(), String> {
+    hongyi_embed::close_in_app_impl(&app)
+}
+
+/// 地址栏跳转：内嵌子 WebView 直达同源目标（会话有效则直接导航，失效则先补跑 OA 单点）。
+#[tauri::command]
+async fn hongyi_embed_navigate(app: tauri::AppHandle, target: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || hongyi_embed::navigate_to(&app, &target))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+/// 内嵌子 WebView 当前实际 URL（地址栏同步用）。
+#[tauri::command]
+fn hongyi_embed_current_url(app: tauri::AppHandle) -> Option<String> {
+    hongyi_embed::current_url(&app)
+}
+
+/// 刷新内嵌的虹翼页面。
+#[tauri::command]
+fn hongyi_embed_reload(app: tauri::AppHandle) -> Result<(), String> {
+    hongyi_embed::reload_embed(&app)
+}
+
+/// 使用 Playwright 打开虹翼系统（带认证）
+#[tauri::command]
+async fn open_hongyi_with_auth() -> Result<(), String> {
+    // 脚本随 skills 根目录解析（exe 同级 skills/ > 环境变量 > manifest skillsRoot），
+    // 不写死 ~/.codex/skills 这类 home 路径，Windows 便携运行同样成立。
+    let script_path = manifest::load_cached()
+        .skills_root()
+        .join("hongyi-external/open-with-playwright.cjs");
+    if !script_path.is_file() {
+        return Err(format!(
+            "找不到 hongyi-external/open-with-playwright.cjs（skills 根目录 {}）",
+            script_path.display()
+        ));
+    }
+
+    // 使用 Playwright 打开虹翼系统
+    std::process::Command::new("node")
+        .arg(&script_path)
+        .spawn()
+        .map_err(|e| format!("启动 Playwright 失败: {}", e))?;
+
+    Ok(())
+}
 
 fn fetch_progress_callback(
     app: tauri::AppHandle,
@@ -361,6 +438,20 @@ async fn write_skill_env(values: std::collections::HashMap<String, String>) -> R
         .map_err(|error| error.to_string())
 }
 
+#[tauri::command]
+async fn read_mail_signature() -> String {
+    tauri::async_runtime::spawn_blocking(command_runtime::read_mail_signature)
+        .await
+        .unwrap_or_default()
+}
+
+#[tauri::command]
+async fn write_mail_signature(value: String) -> Result<command_runtime::CommandOutcome, String> {
+    tauri::async_runtime::spawn_blocking(move || command_runtime::write_mail_signature(&value))
+        .await
+        .map_err(|error| error.to_string())
+}
+
 /// 助手模型调用：OpenAI 兼容 chat/completions；凭证从 skill-env 读取，不经过前端。
 #[tauri::command]
 async fn llm_chat(messages: Vec<serde_json::Value>, tools: Vec<serde_json::Value>) -> llm_runtime::LlmChatOutcome {
@@ -433,13 +524,14 @@ fn setup_portable_env() {
         std::env::set_var("PATH", new_path);
     }
 
-    // Playwright 浏览器缓存与 Skill 根目录：存在才启用，已设置时不覆盖。
+    // Playwright 浏览器缓存：存在才启用，已设置时不覆盖。
     if std::env::var_os("PLAYWRIGHT_BROWSERS_PATH").is_none()
         && exe_dir.join("playwright-browsers").exists()
     {
         std::env::set_var("PLAYWRIGHT_BROWSERS_PATH", exe_dir.join("playwright-browsers"));
     }
-    if std::env::var_os("BOSS_JARVIS_SKILLS_ROOT").is_none() && exe_dir.join("skills").exists() {
+    // 便携包必须使用 exe 同级 Skill，不继承系统里可能残留的旧路径。
+    if exe_dir.join("skills").exists() {
         std::env::set_var("BOSS_JARVIS_SKILLS_ROOT", exe_dir.join("skills"));
     }
 }
@@ -448,6 +540,18 @@ fn setup_portable_env() {
 pub fn run() {
     setup_portable_env();
     tauri::Builder::default()
+        .setup(|app| {
+            hongyi_embed::init(app.handle());
+            // 冒烟钩子（仅本地验证用，验证后移除）：BOSS_JARVIS_SMOKE_HONGYI=1 时启动后自动打开虹翼部门看板。
+            if std::env::var("BOSS_JARVIS_SMOKE_HONGYI").as_deref() == Ok("1") {
+                let handle = app.handle().clone();
+                tauri::async_runtime::spawn_blocking(move || {
+                    std::thread::sleep(std::time::Duration::from_millis(4000));
+                    let _ = hongyi_dashboard::open(&handle);
+                });
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             data_dir,
             toggle_maximize,
@@ -469,11 +573,34 @@ pub fn run() {
             open_mail_reply,
             read_skill_env,
             write_skill_env,
+            read_mail_signature,
+            write_mail_signature,
             llm_chat,
             schedule_status,
             manage_schedule,
-            set_dock_badge
+            set_dock_badge,
+            open_hongyi_with_auth,
+            open_hongyi_dashboard,
+            open_hongyi_in_app,
+            close_hongyi_embed,
+            hongyi_embed_set_slot,
+            hongyi_embed_navigate,
+            hongyi_embed_current_url,
+            hongyi_embed_reload
         ])
+        .on_window_event(|window, event| {
+            // 虹翼外链窗口已停在门户（会话仍活）时，点关闭改为隐藏保活：
+            // 下次打开免 OA 重登、免重跑单点（会话继续活在原窗口内）。
+            if window.label() != hongyi_dashboard::WINDOW_LABEL {
+                return;
+            }
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                if hongyi_dashboard::window_session_alive(window) {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+            }
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

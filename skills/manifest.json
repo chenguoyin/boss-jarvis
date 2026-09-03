@@ -8,7 +8,8 @@
       "runner": "node",
       "fetch": "oa-todo/fetch-todo-with-analysis.cjs",
       "actions": {
-        "approve": "oa-todo/approve-todo.cjs"
+        "approve": "oa-todo/approve-oa.cjs",
+        "getBusinessUrl": "oa-todo/get-business-url.cjs"
       }
     },
     "spm-todo": {
@@ -105,6 +106,12 @@
       "kind": "common",
       "runner": "node",
       "fetch": "oa-schedule/fetch-for-workbench.cjs"
+    },
+    "hongyi-external": {
+      "displayName": "虹翼外链",
+      "kind": "common",
+      "runner": "node",
+      "fetch": "hongyi-external/fetch-auth.cjs"
     }
   }
 }

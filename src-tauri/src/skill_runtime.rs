@@ -22,6 +22,9 @@ const OA_SESSION_SKILLS: &[&str] = &[
     "hongyi-business-overview",
 ];
 
+/// Boss cockpit 必须在其他数据源 skills 完成后才能执行，否则会读到不完整的缓存数据。
+const BOSS_COCKPIT_SKILL: &str = "boss-cockpit";
+
 #[derive(Debug)]
 pub struct RunOutcome {
     pub ok: bool,
@@ -527,14 +530,20 @@ pub fn fetch_skills_tracked(
         .filter(|id| OA_SESSION_SKILLS.contains(&id.as_str()))
         .cloned()
         .collect();
+    // 提取 boss-cockpit，单独最后执行
+    let cockpit_requested = ids.iter().any(|id| id == BOSS_COCKPIT_SKILL);
+    let other_ids: Vec<String> = ids
+        .iter()
+        .filter(|id| !OA_SESSION_SKILLS.contains(&id.as_str()) && id.as_str() != BOSS_COCKPIT_SKILL)
+        .cloned()
+        .collect();
     let mut groups: Vec<Vec<String>> = Vec::new();
     if !serial.is_empty() {
         groups.push(serial);
     }
-    for id in ids {
-        if !OA_SESSION_SKILLS.contains(&id.as_str()) {
-            groups.push(vec![id.clone()]);
-        }
+    // 其他非 OA 的 skills 并发执行
+    for id in other_ids {
+        groups.push(vec![id]);
     }
     let mut by_id: HashMap<String, FetchOutcome> = HashMap::new();
     let outcomes: Vec<FetchOutcome> = pool.install(|| {
@@ -557,6 +566,11 @@ pub fn fetch_skills_tracked(
     });
     for outcome in outcomes {
         by_id.insert(outcome.skill.clone(), outcome);
+    }
+    // Boss cockpit 必须等其他 skills 完成后才执行，确保读取到完整的最新数据
+    if cockpit_requested {
+        let cockpit_outcome = fetch_skill_tracked(manifest, BOSS_COCKPIT_SKILL, progress.clone());
+        by_id.insert(BOSS_COCKPIT_SKILL.to_string(), cockpit_outcome);
     }
     ids.iter()
         .map(|id| {

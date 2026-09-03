@@ -29,3 +29,6 @@ skill-env.conf
 legacy/docs/icon/master*.png
 legacy/docs/icon/rounded-*.png
 legacy/docs/icon/AppIcon*.iconset/
+
+# 开发预览数据（来源于 skill 输出，不提交）
+public/data/

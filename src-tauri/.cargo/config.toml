@@ -1,0 +1,6 @@
+[target.x86_64-pc-windows-gnu]
+linker = "x86_64-w64-mingw32-gcc"
+ar = "x86_64-w64-mingw32-ar"
+
+[build]
+extra-search-path = ["/Users/chenguoyin/Desktop/桌面整理_20260529/13_已有文件夹/00.Templates/Discovery/boss-jarvis/mingw64/bin"]

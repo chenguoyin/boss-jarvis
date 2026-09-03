@@ -1,0 +1,2 @@
+#!/bin/sh
+exec /Users/chenguoyin/Desktop/桌面整理_20260529/13_已有文件夹/00.Templates/Discovery/boss-jarvis/mingw64/bin/objcopy.exe "$@"
