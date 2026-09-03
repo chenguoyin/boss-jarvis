@@ -366,18 +366,8 @@ fn b64url_decode(input: &str) -> Option<Vec<u8>> {
     Some(out)
 }
 
-/// 读共享 OA 登录凭证：skills 根目录下 .shared/oa-session.json 的 sd-ssoToken（裸 JWT），
-/// 且 exp 未过期才返回（失效/缺失返回 None，由调用方回退页面登录）。不打印明文。
-/// 路径随 skills 根目录解析（exe 同级 skills/ > 环境变量 > manifest skillsRoot），
-/// 不写死 ~/.codex/skills，Windows 便携运行与 macOS 开发同一条解析链。
-fn shared_oa_token() -> Option<String> {
-    let path = crate::manifest::load_cached()
-        .skills_root()
-        .join(".shared")
-        .join("oa-session.json");
-    let content = std::fs::read_to_string(path).ok()?;
-    let session: Value = serde_json::from_str(&content).ok()?;
-    let obj = session.as_object()?;
+/// 从单个 JSON 对象里找未过期的 OA access token（裸 JWT，三段式；exp 判活）。
+fn find_valid_token(obj: &serde_json::Map<String, Value>) -> Option<String> {
     let token = ["sd-ssoToken", "ssoToken", "token", "access_token"]
         .iter()
         .find_map(|key| obj.get(*key).and_then(Value::as_str))
@@ -393,6 +383,35 @@ fn shared_oa_token() -> Option<String> {
         .map(|d| d.as_secs())
         .unwrap_or(0);
     exp.is_some_and(|value| value > now).then(|| token.to_string())
+}
+
+/// 读某个 OA 会话文件里的有效 token：兼容两种形状——顶层键（skills .shared/oa-session.json）
+/// 与 { localStorage, sessionStorage: {...} } 快照（App 自维护，token 在 sessionStorage 子对象）。
+fn token_from_file(path: &std::path::Path) -> Option<String> {
+    let content = std::fs::read_to_string(path).ok()?;
+    let value: Value = serde_json::from_str(&content).ok()?;
+    let obj = value.as_object()?;
+    if let Some(token) = find_valid_token(obj) {
+        return Some(token);
+    }
+    obj.get("sessionStorage")
+        .and_then(Value::as_object)
+        .and_then(find_valid_token)
+}
+
+/// 读共享 OA 登录凭证：优先 App 自维护快照（~/.boss-jarvis/oa-session-snapshot.json，
+/// 内嵌页登录成功后即刷新），其次 skills 根目录 .shared/oa-session.json（Playwright OA Skill 回写）。
+/// 均未过期才返回；失效/缺失返回 None，由调用方回退页面登录。不打印明文。
+/// skills 路径随 skills 根目录解析（exe 同级 skills/ > 环境变量 > manifest skillsRoot），
+/// 不写死 ~/.codex/skills，Windows 便携运行与 macOS 开发同一条解析链。
+fn shared_oa_token() -> Option<String> {
+    token_from_file(&crate::paths::oa_session_snapshot_path()).or_else(|| {
+        let path = crate::manifest::load_cached()
+            .skills_root()
+            .join(".shared")
+            .join("oa-session.json");
+        token_from_file(&path)
+    })
 }
 
 /// 在 OA 同源页面：用公共 access_token 调 singleLoginServlet 换 chGT 票据 →
@@ -554,6 +573,14 @@ fn drive(webview: &Webview, user: &str, pass: &str, target: &str) -> Result<Stri
         return Err("OA 自动登录未成功：请稍后重试或检查系统配置的账号密码。".to_string());
     }
     log_phase("内嵌页：OA 首页就绪");
+    // 自维护 OA 会话快照（含 sd-ssoToken）：App 自己的登录成功后刷新，
+    // 供下次打开走公共凭证直连、跳过 OA 登录页（失效才回退页面登录）。
+    if let Ok(snapshot) = eval_json(webview, SNAPSHOT_READ_JS) {
+        if snapshot.get("__error").is_none() {
+            persist_oa_snapshot(snapshot);
+            log_phase("内嵌页：OA 会话快照已刷新（下次打开免登录）");
+        }
+    }
 
     // S2：window.open 补丁 + 点击「虹翼数智」→ 门户单点登录。
     let open_result = eval_json(webview, OPEN_ENTRY_JS)?;
