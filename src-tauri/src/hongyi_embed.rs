@@ -36,7 +36,8 @@ use tauri::{
 };
 
 use crate::hongyi_dashboard::{
-    js_string, log_phase, LOGIN_JS, OA_HOME_URL, OPEN_ENTRY_JS, STATE_JS, WEBVIEW_UA,
+    js_string, log_phase, persist_oa_snapshot, LOGIN_JS, OA_HOME_URL, OPEN_ENTRY_JS, SNAPSHOT_READ_JS,
+    STATE_JS, WEBVIEW_UA,
 };
 
 /// 内嵌子 WebView label。
